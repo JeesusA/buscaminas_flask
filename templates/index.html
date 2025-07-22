@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Buscaminas Flask</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body data-filas="{{ filas }}" data-columnas="{{ columnas }}">
@@ -11,6 +12,7 @@
     <div id="contenedor-tablero">
         <div id="tablero"></div>
     </div>
+    <div id="scroll-hint">⇆ Desliza para ver todo el tablero</div>
     <div id="mensaje"></div>
     <button onclick="location.reload()">Nuevo juego</button>
 

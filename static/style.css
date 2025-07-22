@@ -1,8 +1,9 @@
 body {
-    background: #242c44;
+    background: linear-gradient(135deg, #242c44 60%, #3869b0 100%);
     color: white;
     font-family: Arial, sans-serif;
     text-align: center;
+    min-height: 100vh;
 }
 
 #contenedor-tablero {
@@ -12,8 +13,108 @@ body {
     width: 100vw;
     margin: 0 auto 10px auto;
     overflow-x: auto;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+    border-radius: 16px;
+    background: rgba(255,255,255,0.04);
+    position: relative;
 }
 
+#scroll-hint {
+    color: #ffd978;
+    font-size: 1em;
+    margin-bottom: 8px;
+    opacity: 0.85;
+    animation: scrollHintAnim 1.5s infinite alternate;
+}
+@keyframes scrollHintAnim {
+    from { opacity: 0.5; }
+    to { opacity: 1; }
+}
+
+h1 {
+    margin-top: 30px;
+    margin-bottom: 20px;
+    font-size: 2.2em;
+    letter-spacing: 2px;
+    text-shadow: 2px 2px 8px #203057;
+}
+
+table {
+    margin: 0 auto;
+    border-collapse: separate;
+    border-spacing: 2px;
+    user-select: none;
+    max-width: 100vw;
+    overflow-x: auto;
+    display: block;
+    background: rgba(255,255,255,0.08);
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.10);
+    padding: 6px;
+}
+
+td {
+    width: 40px;
+    height: 40px;
+    font-size: 1.7em;
+    background: #6ea3d8;
+    color: #123;
+    border: 2.5px solid #394b62;
+    cursor: pointer;
+    transition: 0.18s cubic-bezier(.4,2,.6,1);
+    text-align: center;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(30,30,60,0.10);
+    position: relative;
+}
+
+td.descubierto {
+    background: #b3dbb3;
+    color: #1c3b1c;
+    cursor: default;
+    animation: popCell 0.18s;
+}
+@keyframes popCell {
+    from { transform: scale(0.92); }
+    to { transform: scale(1); }
+}
+
+td.bandera {
+    background: #ffd978;
+    color: #b70000;
+    animation: popCell 0.18s;
+}
+
+td:hover:not(.descubierto) {
+    background: #a7c7e7;
+    box-shadow: 0 2px 8px #3869b0aa;
+}
+
+#mensaje {
+    font-size: 1.3em;
+    margin: 18px 0;
+    min-height: 32px;
+}
+
+button {
+    margin: 10px;
+    padding: 8px 24px;
+    font-size: 1.1em;
+    background: linear-gradient(90deg, #203057 60%, #3869b0 100%);
+    color: white;
+    border: none;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: 0.2s;
+    box-shadow: 0 2px 8px #20305733;
+}
+
+button:hover {
+    background: #3869b0;
+    color: #ffd978;
+}
+
+/* Modal y responsividad */
 .modal-oculto {
     display: none;
 }
@@ -60,67 +161,6 @@ body {
     background: #3869b0;
 }
 
-h1 {
-    margin-top: 30px;
-    margin-bottom: 20px;
-    font-size: 2.2em;
-    letter-spacing: 2px;
-}
-
-table {
-    margin: 0 auto;
-    border-collapse: collapse;
-    user-select: none;
-    max-width: 100vw;
-    overflow-x: auto;
-    display: block;
-}
-
-td {
-    width: 40px;
-    height: 40px;
-    font-size: 1.6em;
-    background: #6ea3d8;
-    color: #123;
-    border: 2px solid #394b62;
-    cursor: pointer;
-    transition: 0.2s;
-    text-align: center;
-}
-
-td.descubierto {
-    background: #b3dbb3;
-    color: #1c3b1c;
-    cursor: default;
-}
-
-td.bandera {
-    background: #ffd978;
-    color: #b70000;
-}
-
-#mensaje {
-    font-size: 1.3em;
-    margin: 18px 0;
-    min-height: 32px;
-}
-
-button {
-    margin: 10px;
-    padding: 8px 24px;
-    font-size: 1.1em;
-    background: #203057;
-    color: white;
-    border: none;
-    border-radius: 7px;
-    cursor: pointer;
-    transition: 0.2s;
-}
-
-button:hover {
-    background: #3869b0;
-}
-
 /* Responsividad para pantallas pequeñas */
 @media (max-width: 600px) {
     #contenedor-tablero {
@@ -132,12 +172,12 @@ button:hover {
     }
     table {
         max-width: 100vw;
-        font-size: 0.9em;
+        font-size: 1em;
     }
     td {
-        width: 24px;
-        height: 24px;
-        font-size: 1em;
+        width: 36px;
+        height: 36px;
+        font-size: 1.25em;
         padding: 0;
     }
     h1 {
@@ -149,5 +189,8 @@ button:hover {
     }
     #mensaje {
         font-size: 1em;
+    }
+    #scroll-hint {
+        font-size: 0.95em;
     }
 }
