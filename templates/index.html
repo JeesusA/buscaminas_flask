@@ -74,10 +74,15 @@
         }
 
         function descubrir(f, c) {
+            // No hacer nada si la celda ya está descubierta o el juego terminó
             if (longPressTriggered) {
                 longPressTriggered = false;
                 return;
             }
+            if (descubierto[f][c]) return;
+            // Si el juego terminó, no permitir más acciones
+            const modal = document.getElementById('modal-fin');
+            if (modal.classList.contains('modal-visible')) return;
             fetch('/accion', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
