@@ -1,0 +1,153 @@
+body {
+    background: #242c44;
+    color: white;
+    font-family: Arial, sans-serif;
+    text-align: center;
+}
+
+#contenedor-tablero {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100vw;
+    margin: 0 auto 10px auto;
+    overflow-x: auto;
+}
+
+.modal-oculto {
+    display: none;
+}
+
+.modal-visible {
+    display: flex;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(30, 30, 30, 0.7);
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-contenido {
+    background: #fff;
+    color: #222;
+    border-radius: 16px;
+    padding: 32px 24px 24px 24px;
+    min-width: 260px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+    text-align: center;
+    animation: modalShow 0.3s;
+}
+
+@keyframes modalShow {
+    from { transform: scale(0.8); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+.modal-contenido button {
+    margin: 12px 8px 0 8px;
+    padding: 8px 24px;
+    font-size: 1.1em;
+    background: #203057;
+    color: white;
+    border: none;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.modal-contenido button:hover {
+    background: #3869b0;
+}
+
+h1 {
+    margin-top: 30px;
+    margin-bottom: 20px;
+    font-size: 2.2em;
+    letter-spacing: 2px;
+}
+
+table {
+    margin: 0 auto;
+    border-collapse: collapse;
+    user-select: none;
+    max-width: 100vw;
+    overflow-x: auto;
+    display: block;
+}
+
+td {
+    width: 40px;
+    height: 40px;
+    font-size: 1.6em;
+    background: #6ea3d8;
+    color: #123;
+    border: 2px solid #394b62;
+    cursor: pointer;
+    transition: 0.2s;
+    text-align: center;
+}
+
+td.descubierto {
+    background: #b3dbb3;
+    color: #1c3b1c;
+    cursor: default;
+}
+
+td.bandera {
+    background: #ffd978;
+    color: #b70000;
+}
+
+#mensaje {
+    font-size: 1.3em;
+    margin: 18px 0;
+    min-height: 32px;
+}
+
+button {
+    margin: 10px;
+    padding: 8px 24px;
+    font-size: 1.1em;
+    background: #203057;
+    color: white;
+    border: none;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+button:hover {
+    background: #3869b0;
+}
+
+/* Responsividad para pantallas pequeñas */
+@media (max-width: 600px) {
+    #contenedor-tablero {
+        width: 100vw;
+    }
+    .modal-contenido {
+        min-width: 180px;
+        padding: 18px 6px 12px 6px;
+    }
+    table {
+        max-width: 100vw;
+        font-size: 0.9em;
+    }
+    td {
+        width: 24px;
+        height: 24px;
+        font-size: 1em;
+        padding: 0;
+    }
+    h1 {
+        font-size: 1.3em;
+    }
+    button, .modal-contenido button {
+        font-size: 0.95em;
+        padding: 6px 12px;
+    }
+    #mensaje {
+        font-size: 1em;
+    }
+}

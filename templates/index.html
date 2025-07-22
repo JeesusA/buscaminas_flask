@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Buscaminas Flask</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body data-filas="{{ filas }}" data-columnas="{{ columnas }}">
+    <h1>🧨 Buscaminas 🧨</h1>
+    <button onclick="window.location.href='/'">Menú principal</button>
+    <div id="contenedor-tablero">
+        <div id="tablero"></div>
+    </div>
+    <div id="mensaje"></div>
+    <button onclick="location.reload()">Nuevo juego</button>
+
+    <!-- Modal de fin de juego -->
+    <div id="modal-fin" class="modal-oculto">
+        <div class="modal-contenido">
+            <span id="modal-emoji" style="font-size:2.5em;"></span>
+            <h2 id="modal-mensaje"></h2>
+            <button onclick="location.reload()">Nuevo juego</button>
+            <button onclick="window.location.href='/'">Menú principal</button>
+        </div>
+    </div>
+
+    <script>
+        const filas = parseInt(document.body.dataset.filas);
+        const columnas = parseInt(document.body.dataset.columnas);
+        let descubierto = Array.from({length: filas}, () => Array(columnas).fill(false));
+        let bandera = Array.from({length: filas}, () => Array(columnas).fill(false));
+        let tablero = Array.from({length: filas}, () => Array(columnas).fill(""));
+
+        // Para soporte de long press en móvil
+        let longPressTimer = null;
+        let longPressTriggered = false;
+
+        function crearTablero(descubierto, bandera, tablero, fin) {
+            let t = "<table>";
+            for (let f = 0; f < filas; f++) {
+                t += "<tr>";
+                for (let c = 0; c < columnas; c++) {
+                    let contenido = "";
+                    let clase = "";
+                    if (descubierto[f][c]) {
+                        if (tablero[f][c] === -1) {
+                            contenido = "💣";
+                        } else if (typeof tablero[f][c] === "number" && tablero[f][c] > 0) {
+                            contenido = tablero[f][c];
+                        } else {
+                            contenido = "";
+                        }
+                        clase = "descubierto";
+                    } else if (bandera[f][c]) {
+                        contenido = "🚩";
+                        clase = "bandera";
+                    }
+                    // Celda con eventos para escritorio y móvil
+                    t += `<td class="${clase}"
+                        onclick="descubrir(${f},${c})"
+                        oncontextmenu="marcarBandera(event,${f},${c})"
+                        ontouchstart="iniciarLongPress(event,${f},${c})"
+                        ontouchend="cancelarLongPress(event)"
+                        ontouchmove="cancelarLongPress(event)">
+                        ${contenido}
+                    </td>`;
+                }
+                t += "</tr>";
+            }
+            t += "</table>";
+            document.getElementById("tablero").innerHTML = t;
+        }
+
+        function descubrir(f, c) {
+            if (longPressTriggered) {
+                longPressTriggered = false;
+                return;
+            }
+            fetch('/accion', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({fila: f, columna: c, tipo: "descubrir"})
+            }).then(r => r.json()).then(res => {
+                descubierto = res.descubierto;
+                bandera = res.bandera;
+                if (res.tablero) tablero = res.tablero;
+                crearTablero(descubierto, bandera, tablero, res.fin);
+                if (res.fin) {
+                    mostrarModal(res.ganaste);
+                    if (res.ganaste) {
+                        fetch('/record', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({nivel: "{{ nivel }}"})});
+                    }
+                }
+            }).catch(() => {
+                mostrarModal(null, true);
+            });
+        }
+        function marcarBandera(e, f, c) {
+            if (e) e.preventDefault();
+            fetch('/accion', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({fila: f, columna: c, tipo: "bandera"})
+            }).then(r => r.json()).then(res => {
+                descubierto = res.descubierto;
+                bandera = res.bandera;
+                crearTablero(descubierto, bandera, tablero, res.fin);
+            }).catch(() => {
+                mostrarModal(null, true);
+            });
+        }
+        // Soporte long press móvil
+        function iniciarLongPress(e, f, c) {
+            longPressTriggered = false;
+            longPressTimer = setTimeout(function() {
+                longPressTriggered = true;
+                marcarBandera(null, f, c);
+            }, 500); // 500ms para long press
+        }
+        function cancelarLongPress(e) {
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+            }
+        }
+        function mostrarModal(ganaste, error=false) {
+            const modal = document.getElementById('modal-fin');
+            const emoji = document.getElementById('modal-emoji');
+            const mensaje = document.getElementById('modal-mensaje');
+            if (error) {
+                emoji.textContent = '⚠️';
+                mensaje.textContent = 'Ocurrió un error inesperado.';
+            } else if (ganaste) {
+                emoji.textContent = '🥳';
+                mensaje.textContent = '¡Felicidades! ¡Ganaste!';
+            } else {
+                emoji.textContent = '💣';
+                mensaje.textContent = '¡BOOM! Perdiste';
+            }
+            modal.classList.remove('modal-oculto');
+            modal.classList.add('modal-visible');
+        }
+        window.onload = function() {
+            crearTablero(descubierto, bandera, tablero, false);
+        }
+    </script>
+</body>
+</html>

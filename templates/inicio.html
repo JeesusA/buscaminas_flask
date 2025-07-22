@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Buscaminas - Selección de nivel</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h1>🧨 Buscaminas 🧨</h1>
+    <h2>Selecciona un nivel</h2>
+    <form action="/jugar" method="post">
+        <button type="submit" name="nivel" value="facil">Fácil (8x8, 10 minas)</button>
+        <button type="submit" name="nivel" value="medio">Medio (16x16, 40 minas)</button>
+        <button type="submit" name="nivel" value="dificil">Difícil (16x30, 99 minas)</button>
+    </form>
+    <h2>Personalizado</h2>
+    <form action="/jugar" method="post">
+        <label>Filas: <input type="number" name="filas" min="5" max="30" value="10" required></label><br>
+        <label>Columnas: <input type="number" name="columnas" min="5" max="30" value="10" required></label><br>
+        <label>Minas: <input type="number" name="minas" min="1" max="200" value="10" required></label><br>
+        <button type="submit" name="nivel" value="personalizado">Jugar personalizado</button>
+    </form>
+    {% if records %}
+    <h2>Récords de partidas ganadas</h2>
+    <table style="margin: 0 auto; background: #203057; color: white; border-radius: 8px;">
+        <tr><th style="padding: 6px 16px;">Nivel</th><th style="padding: 6px 16px;">Ganadas</th></tr>
+        {% for nivel, ganadas in records.items() %}
+        <tr><td style="padding: 6px 16px;">{{ nivel }}</td><td style="padding: 6px 16px;">{{ ganadas }}</td></tr>
+        {% endfor %}
+    </table>
+    {% endif %}
+</body>
+</html>
