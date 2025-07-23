@@ -40,6 +40,7 @@ def inicio():
         records = session.get('records', {})
         return render_template("inicio.html", records=records)
     except Exception as e:
+        print(f"[ERROR inicio] {str(e)}")
         return f"Error al cargar la página de inicio: {str(e)}", 500
 
 @app.route("/jugar", methods=["POST"])
@@ -77,8 +78,9 @@ def jugar():
         session['bandera'] = json.dumps([[False for _ in range(columnas)] for _ in range(filas)])
         session['juego_terminado'] = False
         session['nivel_actual'] = nombre
-        return render_template("index.html", filas=filas, columnas=columnas, nivel=nombre)
+        return render_template("index.html", filas=filas, columnas=columnas, nivel=nombre, minas=minas)
     except Exception as e:
+        print(f"[ERROR jugar] {str(e)}")
         return f"Error al iniciar el juego: {str(e)}", 500
 
 @app.route("/accion", methods=["POST"])
@@ -135,6 +137,7 @@ def accion():
         resultado["tablero"] = tablero if resultado["fin"] else [[tablero[i][j] if descubierto[i][j] else "" for j in range(columnas)] for i in range(filas)]
         return jsonify(resultado)
     except Exception as e:
+        print(f"[ERROR accion] {str(e)}")
         return jsonify({'error': f'Error en la acción: {str(e)}'}), 500
 
 @app.route("/record", methods=["POST"])
@@ -149,6 +152,7 @@ def record():
         session['records'] = records
         return jsonify({'ok': True, 'records': records})
     except Exception as e:
+        print(f"[ERROR record] {str(e)}")
         return jsonify({'error': f'Error al guardar el récord: {str(e)}'}), 500
 
 def revelar(tablero, descubierto, f, c):
