@@ -14,6 +14,45 @@
         button { background: var(--button-bg); color: var(--button-text); border-radius: 7px; border: none; padding: 8px 24px; margin: 8px; font-size: 1.08em; cursor: pointer; }
         button:hover { background: var(--button-hover); color: var(--button-text); }
         #toggle-dark { margin-bottom:10px; float:right; position:absolute; right:20px; top:20px; }
+        select, input[type='number'] {
+            background: var(--button-bg);
+            color: var(--button-text);
+            border: 2.5px solid var(--accent);
+            border-radius: 8px;
+            font-family: 'Bungee', Arial, sans-serif;
+            font-size: 1.08em;
+            padding: 8px 36px 8px 16px;
+            margin: 8px 0;
+            outline: none;
+            transition: border 0.2s, box-shadow 0.2s;
+            box-shadow: 0 2px 8px #20305722;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            position: relative;
+        }
+        select:focus, select:hover, input[type='number']:focus, input[type='number']:hover {
+            border: 2.5px solid var(--button-hover);
+            box-shadow: 0 4px 16px #7da2c755;
+        }
+        /* Flecha personalizada para select */
+        select::-ms-expand { display: none; }
+        select::after {
+            content: '\25BC';
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--accent);
+            font-size: 1.1em;
+            pointer-events: none;
+        }
+        option {
+            background: var(--button-bg);
+            color: var(--button-text);
+            font-family: 'Bungee', Arial, sans-serif;
+        }
     </style>
 </head>
 <body>
