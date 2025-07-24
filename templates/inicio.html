@@ -18,27 +18,31 @@
     <button id="toggle-dark">🌙 Modo oscuro</button>
     <button id="btn-tutorial" style="margin-top:10px;">¿Cómo jugar?</button>
     <h1>🧨 Buscaminas 🧨</h1>
-    <h2>Selecciona un nivel</h2>
+    <h2>Configura tu partida</h2>
     <form action="/jugar" method="post">
+        <label for="modo">Modo de juego:</label>
+        <select name="modo" id="modo" style="margin: 0 0 12px 8px; padding: 4px 12px; border-radius: 6px; font-size:1em;">
+            <option value="clasico">Clásico</option>
+            <option value="contrarreloj">Contrarreloj</option>
+        </select>
+        <div id="desc-modo" style="margin: 8px 0 16px 0; font-size:1em; color:var(--text-secondary); min-height:32px;">
+            Descubre todas las celdas sin minas. Usa banderas para marcar las minas. Sin límite de tiempo.
+        </div>
+        <label for="nivel">Dificultad:</label><br>
         <button type="submit" name="nivel" value="facil">Fácil (8x8, 10 minas)</button>
         <button type="submit" name="nivel" value="medio">Medio (16x16, 40 minas)</button>
         <button type="submit" name="nivel" value="dificil">Difícil (16x30, 99 minas)</button>
     </form>
     <h2>Personalizado</h2>
     <form action="/jugar" method="post">
+        <input type="hidden" name="modo" id="modo-personalizado" value="clasico">
         <label>Filas: <input type="number" name="filas" min="5" max="30" value="10" required></label><br>
         <label>Columnas: <input type="number" name="columnas" min="5" max="30" value="10" required></label><br>
         <label>Minas: <input type="number" name="minas" min="1" max="200" value="10" required></label><br>
         <button type="submit" name="nivel" value="personalizado">Jugar personalizado</button>
     </form>
     {% if records %}
-    <h2>Récords de partidas ganadas</h2>
-    <table style="margin: 0 auto; background: #203057; color: white; border-radius: 8px;">
-        <tr><th style="padding: 6px 16px;">Nivel</th><th style="padding: 6px 16px;">Ganadas</th></tr>
-        {% for nivel, ganadas in records.items() %}
-        <tr><td style="padding: 6px 16px;">{{ nivel }}</td><td style="padding: 6px 16px;">{{ ganadas }}</td></tr>
-        {% endfor %}
-    </table>
+    <!-- Sección de récords eliminada temporalmente -->
     {% endif %}
     <script>
         // Modo oscuro/claro universal
@@ -67,6 +71,17 @@
         };
         document.getElementById("btn-tutorial").onclick = function() {
             window.location.href = "/tutorial";
+        };
+        // Sincroniza el modo de juego en el formulario personalizado
+        // Descripción dinámica del modo de juego
+        const descModo = document.getElementById('desc-modo');
+        document.getElementById('modo').onchange = function() {
+            document.getElementById('modo-personalizado').value = this.value;
+            if (this.value === 'clasico') {
+                descModo.textContent = 'Descubre todas las celdas sin minas. Usa banderas para marcar las minas. Sin límite de tiempo.';
+            } else if (this.value === 'contrarreloj') {
+                descModo.textContent = 'Descubre todas las celdas sin minas antes de que se acabe el tiempo. ¡Piensa y actúa rápido!';
+            }
         };
     </script>
 </body>

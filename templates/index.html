@@ -14,12 +14,14 @@
     <button id="toggle-dark" style="margin-bottom:10px; float:right; position:absolute; right:20px; top:20px;">🌙 Modo oscuro</button>
     <div id="contador-banderas" style="font-size:1.2em; margin-bottom:4px; color:var(--accent);">Banderas restantes: <span id="banderas-restantes"></span></div>
     <div id="temporizador" style="font-size:1.2em; margin-bottom:8px; color:var(--accent);">
-        Tiempo: <span id="tiempo-juego">0</span> s
+        <span id="texto-tiempo"></span>
+        <span id="tiempo-juego">0</span> s
         <span id="record-tiempo" style="margin-left:16px; font-size:0.95em; color:#fff; background:#203057; border-radius:6px; padding:2px 10px;">Récord: <span id="mejor-tiempo">--</span> s</span>
         <button id="borrar-record" style="margin-left:10px; font-size:0.8em; background:#b70000; color:#fff; border:none; border-radius:5px; padding:2px 8px; cursor:pointer;">Borrar récord</button>
     </div>
     <button onclick="window.location.href='/'">Menú principal</button>
     <button id="btn-nuevo-juego">Nuevo juego</button>
+    <!-- Elimino el botón y mensaje de guardar partida -->
     <div id="contenedor-tablero">
         <div id="tablero"></div>
     </div>
@@ -47,7 +49,10 @@
         </div>
     </div>
 
+    <!-- Elimino el modal de continuar partida -->
+
     <script>
+        const modo = "{{ modo|default('clasico') }}";
         const filas = parseInt(document.body.dataset.filas);
         const columnas = parseInt(document.body.dataset.columnas);
         const minas = parseInt(document.body.dataset.minas);
@@ -62,14 +67,29 @@
 
         let timer = null;
         let tiempo = 0;
+        let tiempoRestante = parseInt('{{ tiempo_limite|default(60) }}'); // Tiempo límite dinámico para contrarreloj
         let juegoIniciado = false;
         let juegoTerminado = false;
         function iniciarTemporizador() {
             if (timer !== null) return;
-            timer = setInterval(() => {
-                tiempo++;
-                document.getElementById("tiempo-juego").textContent = tiempo;
-            }, 1000);
+            if (modo === 'contrarreloj') {
+                document.getElementById('texto-tiempo').textContent = 'Tiempo restante: ';
+                document.getElementById('tiempo-juego').textContent = tiempoRestante;
+                timer = setInterval(() => {
+                    tiempoRestante--;
+                    document.getElementById('tiempo-juego').textContent = tiempoRestante;
+                    if (tiempoRestante <= 0) {
+                        detenerTemporizador();
+                        mostrarModal(null, true, '¡Se acabó el tiempo!');
+                    }
+                }, 1000);
+            } else {
+                document.getElementById('texto-tiempo').textContent = 'Tiempo: ';
+                timer = setInterval(() => {
+                    tiempo++;
+                    document.getElementById('tiempo-juego').textContent = tiempo;
+                }, 1000);
+            }
         }
         function detenerTemporizador() {
             if (timer !== null) {
@@ -88,6 +108,10 @@
             document.getElementById("banderas-restantes").textContent = minas - usadas;
         }
 
+        // Variables para animación de celda
+        let ultimaDescubierta = null;
+        let ultimaBandera = null;
+
         function crearTablero(descubierto, bandera, tablero, fin, celdaExplotada=null, ganaste=false) {
             let t = "<table>";
             for (let f = 0; f < filas; f++) {
@@ -105,12 +129,18 @@
                             contenido = "";
                         }
                         clase = "descubierto";
+                        if (ultimaDescubierta && f === ultimaDescubierta.f && c === ultimaDescubierta.c) {
+                            clase += " animar-pop";
+                        }
                         if (celdaExplotada && f === celdaExplotada[0] && c === celdaExplotada[1]) {
                             clase += " celda-explotada";
                         }
                     } else if (bandera[f][c]) {
                         contenido = "🚩";
                         clase = "bandera";
+                        if (ultimaBandera && f === ultimaBandera.f && c === ultimaBandera.c) {
+                            clase += " animar-flag";
+                        }
                     } else if (fin && tablero[f][c] === -1) {
                         contenido = ganaste ? "🏁" : "💣";
                         clase = "descubierto extra-mina";
@@ -139,6 +169,8 @@
             t += "</table>";
             document.getElementById("tablero").innerHTML = t;
             actualizarContadorBanderas();
+            // Limpio la animación después de un ciclo
+            setTimeout(() => { ultimaDescubierta = null; ultimaBandera = null; }, 350);
         }
 
         // Defino descubrir en window si no existe
@@ -165,6 +197,7 @@
                     descubierto = res.descubierto;
                     bandera = res.bandera;
                     if (res.tablero) tablero = res.tablero;
+                    // Elimino la función guardarPartida y cualquier llamada a ella
                     if (res.fin) {
                         if (res.perdiste) {
                             crearTablero(descubierto, bandera, tablero, true, [f, c], false);
@@ -189,40 +222,41 @@
                 });
             }
         }
-        // Modifico descubrir para avanzar el tutorial
+        // Modifico descubrir y marcarBandera para animar solo la celda seleccionada
         const descubrirOriginal = window.descubrir;
         window.descubrir = function(f, c) {
-            // if (esTutorial && pasoTutorial === 0) {
-            //     if (f === celdaTutorial.f && c === celdaTutorial.c) {
-            //         pasoTutorial = 1;
-            //         document.getElementById('tutorial-banner').innerHTML = '<b>¡Bien hecho!</b><br>Ahora intenta marcar una bandera en una celda que creas que tiene mina (clic derecho o long press).';
-            //         // Permitir clicks normales en el resto del tablero
-            //         crearTablero(descubierto, bandera, tablero, false);
-            //     } else {
-            //         return;
-            //     }
-            // }
+            ultimaDescubierta = {f, c};
             descubrirOriginal(f, c);
         }
-        function marcarBandera(e, f, c) {
-            if (juegoTerminado) return;
-            if (!juegoIniciado) {
-                iniciarTemporizador();
-                juegoIniciado = true;
+        // Defino window.marcarBandera si no existe
+        if (!window.marcarBandera) {
+            window.marcarBandera = function(e, f, c) {
+                if (juegoTerminado) return;
+                if (!juegoIniciado) {
+                    iniciarTemporizador();
+                    juegoIniciado = true;
+                }
+                movimientos++;
+                if (e) e.preventDefault();
+                fetch('/accion', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({fila: f, columna: c, tipo: "bandera"})
+                }).then(r => r.json()).then(res => {
+                    descubierto = res.descubierto;
+                    bandera = res.bandera;
+                    // Elimino la función guardarPartida y cualquier llamada a ella
+                    crearTablero(descubierto, bandera, tablero, res.fin);
+                }).catch(() => {
+                    mostrarModal(null, true);
+                });
             }
-            movimientos++;
-            if (e) e.preventDefault();
-            fetch('/accion', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({fila: f, columna: c, tipo: "bandera"})
-            }).then(r => r.json()).then(res => {
-                descubierto = res.descubierto;
-                bandera = res.bandera;
-                crearTablero(descubierto, bandera, tablero, res.fin);
-            }).catch(() => {
-                mostrarModal(null, true);
-            });
+        }
+        // Modifico marcarBandera para animar solo la celda seleccionada
+        const marcarBanderaOriginal = window.marcarBandera;
+        window.marcarBandera = function(e, f, c) {
+            ultimaBandera = {f, c};
+            marcarBanderaOriginal(e, f, c);
         }
         // Soporte long press móvil
         function iniciarLongPress(e, f, c) {
@@ -246,13 +280,13 @@
                 document.getElementById("mejor-tiempo").textContent = "--";
             }
         }
-        function mostrarModal(ganaste, error=false) {
+        function mostrarModal(ganaste, error=false, mensajeExtra=null) {
             const modal = document.getElementById('modal-fin');
             const emoji = document.getElementById('modal-emoji');
             const mensaje = document.getElementById('modal-mensaje');
             if (error) {
                 emoji.textContent = '⚠️';
-                mensaje.textContent = 'Ocurrió un error inesperado.';
+                mensaje.textContent = mensajeExtra || 'Ocurrió un error inesperado.';
             } else if (ganaste) {
                 emoji.textContent = '🥳';
                 mensaje.textContent = '¡Felicidades! ¡Ganaste!';
@@ -273,9 +307,17 @@
             detenerTemporizador();
         }
         window.onload = function() {
+            // Elimino la lógica de restaurar partida en window.onload
             crearTablero(descubierto, bandera, tablero, false);
             actualizarContadorBanderas();
-            document.getElementById("tiempo-juego").textContent = 0;
+            if (modo === 'contrarreloj') {
+                tiempoRestante = parseInt('{{ tiempo_limite|default(60) }}');
+                document.getElementById('texto-tiempo').textContent = 'Tiempo restante: ';
+                document.getElementById('tiempo-juego').textContent = tiempoRestante;
+            } else {
+                document.getElementById('texto-tiempo').textContent = 'Tiempo: ';
+                document.getElementById('tiempo-juego').textContent = 0;
+            }
             tiempo = 0;
             juegoIniciado = false;
             juegoTerminado = false;

@@ -47,12 +47,16 @@ def inicio():
 def jugar():
     try:
         nivel = request.form.get("nivel")
+        modo = request.form.get("modo", "clasico")
         if nivel == "facil":
             nombre, filas, columnas, minas = NIVELES[0]
+            tiempo_limite = 60
         elif nivel == "medio":
             nombre, filas, columnas, minas = NIVELES[1]
+            tiempo_limite = 120
         elif nivel == "dificil":
             nombre, filas, columnas, minas = NIVELES[2]
+            tiempo_limite = 240
         elif nivel == "personalizado":
             try:
                 filas = int(request.form.get("filas", 10))
@@ -64,11 +68,21 @@ def jugar():
                 if minas < 1: minas = 1
                 if minas > filas * columnas - 1:
                     minas = filas * columnas - 1
+                # Tiempo proporcional: 60s para 8x8, 120s para 16x16, 240s para 16x30
+                base = filas * columnas
+                if base <= 64:
+                    tiempo_limite = 60
+                elif base <= 256:
+                    tiempo_limite = 120
+                else:
+                    tiempo_limite = 240
             except Exception:
                 filas, columnas, minas = 10, 10, 10
                 nombre = "Personalizado"
+                tiempo_limite = 90
         else:
             nombre, filas, columnas, minas = NIVELES[0]
+            tiempo_limite = 60
         tablero = crear_tablero(filas, columnas, minas)
         session['tablero'] = json.dumps(tablero)
         session['filas'] = filas
@@ -78,7 +92,7 @@ def jugar():
         session['bandera'] = json.dumps([[False for _ in range(columnas)] for _ in range(filas)])
         session['juego_terminado'] = False
         session['nivel_actual'] = nombre
-        return render_template("index.html", filas=filas, columnas=columnas, nivel=nombre, minas=minas)
+        return render_template("index.html", filas=filas, columnas=columnas, nivel=nombre, minas=minas, modo=modo, tiempo_limite=tiempo_limite)
     except Exception as e:
         print(f"[ERROR jugar] {str(e)}")
         return f"Error al iniciar el juego: {str(e)}", 500
