@@ -215,3 +215,23 @@ button:hover {
 .animar-flag {
     animation: popFlag 0.28s cubic-bezier(.4,1.6,.6,1) both !important;
 }
+
+#confeti {
+    pointer-events: none;
+    position: fixed;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    z-index: 2000;
+    overflow: hidden;
+    display: none;
+}
+.shake-derrota {
+    animation: shakeDerrota 0.5s cubic-bezier(.36,.07,.19,.97) both;
+    background: #b7000033 !important;
+}
+@keyframes shakeDerrota {
+    10%, 90% { transform: translateX(-2px); }
+    20%, 80% { transform: translateX(4px); }
+    30%, 50%, 70% { transform: translateX(-8px); }
+    40%, 60% { transform: translateX(8px); }
+    100% { transform: translateX(0); }
+}
