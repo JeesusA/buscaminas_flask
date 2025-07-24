@@ -4,12 +4,14 @@
     <meta charset="UTF-8">
     <title>Buscaminas - Selección de nivel</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Bungee&display=swap" rel="stylesheet">
     <style>
-        body { background: var(--bg-main); color: var(--text-main); }
-        h1, h2 { color: var(--text-secondary); }
-        table { background: var(--bg-table); color: var(--text-main); border-radius: 8px; }
-        th, td { color: var(--text-main); }
-        button { background: var(--button-bg); color: var(--button-text); border-radius: 7px; border: none; padding: 8px 24px; margin: 8px; font-size: 1.1em; cursor: pointer; }
+        body { background: var(--bg-main); color: var(--text-main); font-family: 'Bungee', Arial, sans-serif; }
+        h1, h2, #desc-modo, button {
+            font-family: 'Bungee', Arial, sans-serif !important;
+            letter-spacing: 1px;
+        }
+        button { background: var(--button-bg); color: var(--button-text); border-radius: 7px; border: none; padding: 8px 24px; margin: 8px; font-size: 1.08em; cursor: pointer; }
         button:hover { background: var(--button-hover); color: #bfa76a; }
         #toggle-dark { margin-bottom:10px; float:right; position:absolute; right:20px; top:20px; }
     </style>

@@ -4,11 +4,21 @@
     <meta charset="UTF-8">
     <title>Buscaminas Flask</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Bungee&display=swap" rel="stylesheet">
     <style>
         .resaltada { box-shadow: 0 0 0 3px var(--accent) !important; z-index: 2; }
         .adyacente { box-shadow: 0 0 0 2px var(--accent)55 !important; z-index: 1; }
         .bomba-perdida { background: #b70000 !important; color: #fff !important; border: 2.5px solid #b70000 !important; animation: none !important; }
         .celda-explotada { background: #7a001a !important; color: #fff !important; border: 2.5px solid #b70000 !important; animation: none !important; }
+        body { font-family: 'Bungee', Arial, sans-serif; }
+        h1, h2, #contador-banderas, #temporizador, #mensaje, .modal-contenido h2, .modal-contenido button, button {
+            font-family: 'Bungee', Arial, sans-serif !important;
+            letter-spacing: 1px;
+        }
+        button, .modal-contenido button {
+            font-size: 1.08em;
+        }
+        #tiempo-juego { display: inline-block; min-width: 32px; }
     </style>
 </head>
 <body data-filas="{{ filas }}" data-columnas="{{ columnas }}" data-minas="{{ minas }}" data-nivel="{{ nivel }}">
@@ -264,6 +274,7 @@
                 }).then(r => r.json()).then(res => {
                     descubierto = res.descubierto;
                     bandera = res.bandera;
+                    ultimaBandera = {f, c}; // <-- Añado esto para activar la animación
                     crearTablero(descubierto, bandera, tablero, res.fin);
                 }).catch(() => {
                     mostrarModal(null, true);
@@ -293,6 +304,7 @@
                     }
                     descubierto = res.descubierto;
                     bandera = res.bandera;
+                    ultimaBandera = {f, c}; // <-- Añado esto para activar la animación
                     crearTablero(descubierto, bandera, tablero, res.fin);
                 }).catch(() => {
                     mostrarModal(null, true);
@@ -350,6 +362,7 @@
             detenerTemporizador();
         }
         // Elimino la lógica de mina móvil en descubrir y moverMina
+        // Elimino la función actualizarColorTemporizador y cualquier lógica de color/animación del temporizador
         window.onload = function() {
             // Elimino la lógica de restaurar partida en window.onload
             crearTablero(descubierto, bandera, tablero, false);
