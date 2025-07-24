@@ -16,7 +16,10 @@
 </head>
 <body>
     <button id="toggle-dark">🌙 Modo oscuro</button>
-    <button id="btn-tutorial" style="margin-top:10px;">¿Cómo jugar?</button>
+    <!-- Botón de tutorial como formulario POST -->
+    <form action="/tutorial" method="post" style="display:inline;">
+        <button type="submit" id="btn-tutorial" style="margin-top:10px;">¿Cómo jugar?</button>
+    </form>
     <h1>🧨 Buscaminas 🧨</h1>
     <h2>Configura tu partida</h2>
     <form action="/jugar" method="post">
@@ -24,6 +27,7 @@
         <select name="modo" id="modo" style="margin: 0 0 12px 8px; padding: 4px 12px; border-radius: 6px; font-size:1em;">
             <option value="clasico">Clásico</option>
             <option value="contrarreloj">Contrarreloj</option>
+            <option value="sinbanderas">Sin banderas</option>
         </select>
         <div id="desc-modo" style="margin: 8px 0 16px 0; font-size:1em; color:var(--text-secondary); min-height:32px;">
             Descubre todas las celdas sin minas. Usa banderas para marcar las minas. Sin límite de tiempo.
@@ -69,9 +73,6 @@
                 localStorage.setItem("modoOscuro", "1");
             }
         };
-        document.getElementById("btn-tutorial").onclick = function() {
-            window.location.href = "/tutorial";
-        };
         // Sincroniza el modo de juego en el formulario personalizado
         // Descripción dinámica del modo de juego
         const descModo = document.getElementById('desc-modo');
@@ -81,6 +82,8 @@
                 descModo.textContent = 'Descubre todas las celdas sin minas. Usa banderas para marcar las minas. Sin límite de tiempo.';
             } else if (this.value === 'contrarreloj') {
                 descModo.textContent = 'Descubre todas las celdas sin minas antes de que se acabe el tiempo. ¡Piensa y actúa rápido!';
+            } else if (this.value === 'sinbanderas') {
+                descModo.textContent = 'No puedes marcar banderas. Descubre todas las celdas seguras solo usando la lógica.';
             }
         };
     </script>

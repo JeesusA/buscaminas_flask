@@ -97,9 +97,22 @@ def jugar():
         print(f"[ERROR jugar] {str(e)}")
         return f"Error al iniciar el juego: {str(e)}", 500
 
-@app.route("/tutorial")
+@app.route("/jugar", methods=["GET"])
+def jugar_get():
+    from flask import redirect, url_for
+    return redirect(url_for('inicio'))
+
+@app.route("/tutorial", methods=["GET", "POST"])
 def tutorial():
+    from flask import request, redirect, url_for, render_template
+    if request.method == "GET":
+        return redirect(url_for('inicio'))
     return render_template("tutorial.html")
+
+@app.route("/tutorial", methods=["GET"])
+def tutorial_get():
+    from flask import redirect, url_for
+    return redirect(url_for('inicio'))
 
 @app.route("/accion", methods=["POST"])
 def accion():
@@ -191,6 +204,11 @@ def revelar(tablero, descubierto, f, c):
                 for j in range(y-1, y+2):
                     if 0 <= i < filas and 0 <= j < columnas and not descubierto[i][j]:
                         queue.append((i, j))
+
+@app.errorhandler(404)
+def page_not_found(e):
+    from flask import redirect, url_for
+    return redirect(url_for('inicio'))
 
 if __name__ == "__main__":
     app.run(debug=True)

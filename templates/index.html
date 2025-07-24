@@ -7,11 +7,26 @@
     <style>
         .resaltada { box-shadow: 0 0 0 3px var(--accent) !important; z-index: 2; }
         .adyacente { box-shadow: 0 0 0 2px var(--accent)55 !important; z-index: 1; }
+        .bomba-perdida { background: #b70000 !important; color: #fff !important; border: 2.5px solid #b70000 !important; animation: none !important; }
+        .celda-explotada { background: #7a001a !important; color: #fff !important; border: 2.5px solid #b70000 !important; animation: none !important; }
     </style>
 </head>
 <body data-filas="{{ filas }}" data-columnas="{{ columnas }}" data-minas="{{ minas }}" data-nivel="{{ nivel }}">
+    <script>
+        // Modo oscuro/claro universal solo lectura (antes de cualquier renderizado visual)
+        function aplicarModoOscuro() {
+            document.body.classList.add("dark-mode");
+        }
+        function aplicarModoClaro() {
+            document.body.classList.remove("dark-mode");
+        }
+        if (localStorage.getItem("modoOscuro") === "1") {
+            aplicarModoOscuro();
+        } else {
+            aplicarModoClaro();
+        }
+    </script>
     <h1>🧨 Buscaminas 🧨</h1>
-    <button id="toggle-dark" style="margin-bottom:10px; float:right; position:absolute; right:20px; top:20px;">🌙 Modo oscuro</button>
     <div id="contador-banderas" style="font-size:1.2em; margin-bottom:4px; color:var(--accent);">Banderas restantes: <span id="banderas-restantes"></span></div>
     <div id="temporizador" style="font-size:1.2em; margin-bottom:8px; color:var(--accent);">
         <span id="texto-tiempo"></span>
@@ -19,14 +34,17 @@
         <span id="record-tiempo" style="margin-left:16px; font-size:0.95em; color:#fff; background:#203057; border-radius:6px; padding:2px 10px;">Récord: <span id="mejor-tiempo">--</span> s</span>
         <button id="borrar-record" style="margin-left:10px; font-size:0.8em; background:#b70000; color:#fff; border:none; border-radius:5px; padding:2px 8px; cursor:pointer;">Borrar récord</button>
     </div>
-    <button onclick="window.location.href='/'">Menú principal</button>
-    <button id="btn-nuevo-juego">Nuevo juego</button>
+    <div style="margin-bottom: 12px;">
+        <button onclick="window.location.href='/'">Menú principal</button>
+        <button id="btn-nuevo-juego">Nuevo juego</button>
+    </div>
     <!-- Elimino el botón y mensaje de guardar partida -->
     <div id="contenedor-tablero">
         <div id="tablero"></div>
     </div>
     <div id="scroll-hint">⇆ Desliza para ver todo el tablero</div>
     <div id="mensaje"></div>
+    <!-- Elimino el contador y mensaje de mina móvil -->
 
     <!-- Modal de fin de juego -->
     <div id="modal-fin" class="modal-oculto">
@@ -143,7 +161,7 @@
                         }
                     } else if (fin && tablero[f][c] === -1) {
                         contenido = ganaste ? "🏁" : "💣";
-                        clase = "descubierto extra-mina";
+                        clase = "descubierto bomba-perdida";
                     }
                     // Tutorial: solo permite clic en la celda indicada
                     // if (esTutorial && pasoTutorial === 0 && (f !== celdaTutorial.f || c !== celdaTutorial.c)) {
@@ -225,6 +243,7 @@
         // Modifico descubrir y marcarBandera para animar solo la celda seleccionada
         const descubrirOriginal = window.descubrir;
         window.descubrir = function(f, c) {
+            movimientos++;
             ultimaDescubierta = {f, c};
             descubrirOriginal(f, c);
         }
@@ -252,9 +271,15 @@
                 });
             }
         }
-        // Modifico marcarBandera para animar solo la celda seleccionada
+        // Modifico marcarBandera para deshabilitar en modo sin banderas
         const marcarBanderaOriginal = window.marcarBandera;
         window.marcarBandera = function(e, f, c) {
+            if (modo === 'sinbanderas') {
+                if (e) e.preventDefault();
+                document.getElementById('mensaje').textContent = 'No puedes marcar banderas en este modo.';
+                setTimeout(() => { document.getElementById('mensaje').textContent = ''; }, 1500);
+                return;
+            }
             ultimaBandera = {f, c};
             marcarBanderaOriginal(e, f, c);
         }
@@ -306,6 +331,7 @@
             modal.classList.add('modal-visible');
             detenerTemporizador();
         }
+        // Elimino la lógica de mina móvil en descubrir y moverMina
         window.onload = function() {
             // Elimino la lógica de restaurar partida en window.onload
             crearTablero(descubierto, bandera, tablero, false);
@@ -323,6 +349,7 @@
             juegoTerminado = false;
             detenerTemporizador();
             movimientos = 0;
+            document.getElementById('mina-movil-info').style.display = 'none';
             mostrarRecord();
             document.getElementById("btn-nuevo-juego").onclick = function() {
                 if (movimientos > 0) {
@@ -347,30 +374,7 @@
             .extra-mina { opacity: 0.7; }`;
             document.head.appendChild(style);
 
-            // Modo oscuro/claro
-            const btnDark = document.getElementById("toggle-dark");
-            function aplicarModoOscuro() {
-                document.body.classList.add("dark-mode");
-                btnDark.textContent = "☀️ Modo claro";
-            }
-            function aplicarModoClaro() {
-                document.body.classList.remove("dark-mode");
-                btnDark.textContent = "🌙 Modo oscuro";
-            }
-            if (localStorage.getItem("modoOscuro") === "1") {
-                aplicarModoOscuro();
-            } else {
-                aplicarModoClaro();
-            }
-            btnDark.onclick = function() {
-                if (document.body.classList.contains("dark-mode")) {
-                    aplicarModoClaro();
-                    localStorage.setItem("modoOscuro", "0");
-                } else {
-                    aplicarModoOscuro();
-                    localStorage.setItem("modoOscuro", "1");
-                }
-            };
+            // Elimino la función encontrarCeldaSegura, la lógica de pistas y el contador de pistas
         }
         function mostrarModalReinicio() {
             const modal = document.getElementById('modal-reinicio');
