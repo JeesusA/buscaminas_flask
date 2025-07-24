@@ -191,61 +191,61 @@
             setTimeout(() => { ultimaDescubierta = null; ultimaBandera = null; }, 350);
         }
 
-        // Defino descubrir en window si no existe
-        if (!window.descubrir) {
-            window.descubrir = function(f, c) {
-                if (juegoTerminado) return;
-                if (!juegoIniciado) {
-                    iniciarTemporizador();
-                    juegoIniciado = true;
-                }
-                movimientos++;
-                if (longPressTriggered) {
-                    longPressTriggered = false;
-                    return;
-                }
-                if (descubierto[f][c]) return;
-                const modal = document.getElementById('modal-fin');
-                if (modal.classList.contains('modal-visible')) return;
-                fetch('/accion', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({fila: f, columna: c, tipo: "descubrir"})
-                }).then(r => r.json()).then(res => {
-                    descubierto = res.descubierto;
-                    bandera = res.bandera;
-                    if (res.tablero) tablero = res.tablero;
-                    // Elimino la función guardarPartida y cualquier llamada a ella
-                    if (res.fin) {
-                        if (res.perdiste) {
-                            crearTablero(descubierto, bandera, tablero, true, [f, c], false);
-                        } else {
-                            crearTablero(descubierto, bandera, tablero, true, null, true);
-                        }
-                        detenerTemporizador();
-                        setTimeout(function() {
-                            mostrarModal(res.ganaste);
-                            if (res.ganaste) {
-                                fetch('/record', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({nivel: nivel})});
-                            }
-                        }, 1000);
-                        // Aseguro que juegoIniciado se marque como false al finalizar
-                        juegoIniciado = false;
-                        juegoTerminado = true;
-                    } else {
-                        crearTablero(descubierto, bandera, tablero, false);
-                    }
-                }).catch(() => {
-                    mostrarModal(null, true);
-                });
-            }
-        }
-        // Modifico descubrir y marcarBandera para animar solo la celda seleccionada
-        const descubrirOriginal = window.descubrir;
+        // Defino la función base de descubrir en window
         window.descubrir = function(f, c) {
+            if (juegoTerminado) return;
+            if (!juegoIniciado) {
+                iniciarTemporizador();
+                juegoIniciado = true;
+            }
             movimientos++;
+            if (longPressTriggered) {
+                longPressTriggered = false;
+                return;
+            }
+            if (descubierto[f][c]) return;
+            const modal = document.getElementById('modal-fin');
+            if (modal.classList.contains('modal-visible')) return;
+            fetch('/accion', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({fila: f, columna: c, tipo: "descubrir"})
+            }).then(r => r.json()).then(res => {
+                descubierto = res.descubierto;
+                bandera = res.bandera;
+                if (res.tablero) tablero = res.tablero;
+                if (res.fin) {
+                    if (res.perdiste) {
+                        crearTablero(descubierto, bandera, tablero, true, [f, c], false);
+                    } else {
+                        crearTablero(descubierto, bandera, tablero, true, null, true);
+                    }
+                    detenerTemporizador();
+                    setTimeout(function() {
+                        mostrarModal(res.ganaste);
+                        if (res.ganaste) {
+                            fetch('/record', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({nivel: nivel})});
+                        }
+                    }, 1000);
+                    juegoIniciado = false;
+                    juegoTerminado = true;
+                } else {
+                    crearTablero(descubierto, bandera, tablero, false);
+                }
+            }).catch(() => {
+                mostrarModal(null, true);
+            });
+        }
+        // Wrapper para animación y modo experto
+        const descubrirBase = window.descubrir;
+        window.descubrir = function(f, c) {
+            if (modo === 'experto' && bandera[f][c]) {
+                mostrarModal(false, true, '¡Intentaste descubrir una celda con bandera! Modo experto: 1 error y pierdes.');
+                juegoTerminado = true;
+                return;
+            }
             ultimaDescubierta = {f, c};
-            descubrirOriginal(f, c);
+            descubrirBase(f, c);
         }
         // Defino window.marcarBandera si no existe
         if (!window.marcarBandera) {
@@ -264,24 +264,42 @@
                 }).then(r => r.json()).then(res => {
                     descubierto = res.descubierto;
                     bandera = res.bandera;
-                    // Elimino la función guardarPartida y cualquier llamada a ella
                     crearTablero(descubierto, bandera, tablero, res.fin);
                 }).catch(() => {
                     mostrarModal(null, true);
                 });
             }
         }
-        // Modifico marcarBandera para deshabilitar en modo sin banderas
+        // Wrapper solo para modo experto
         const marcarBanderaOriginal = window.marcarBandera;
         window.marcarBandera = function(e, f, c) {
-            if (modo === 'sinbanderas') {
+            if (modo === 'experto') {
                 if (e) e.preventDefault();
-                document.getElementById('mensaje').textContent = 'No puedes marcar banderas en este modo.';
-                setTimeout(() => { document.getElementById('mensaje').textContent = ''; }, 1500);
-                return;
+                if (bandera[f][c]) {
+                    ultimaBandera = {f, c};
+                    marcarBanderaOriginal(e, f, c);
+                    return;
+                }
+                // Solo envío la acción, el backend valida
+                fetch('/accion', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({fila: f, columna: c, tipo: "bandera"})
+                }).then(r => r.json()).then(res => {
+                    if (res.bandera_incorrecta) {
+                        mostrarModal(false, true, '¡Marcaste una bandera incorrecta! Modo experto: 1 error y pierdes.');
+                        juegoTerminado = true;
+                        return;
+                    }
+                    descubierto = res.descubierto;
+                    bandera = res.bandera;
+                    crearTablero(descubierto, bandera, tablero, res.fin);
+                }).catch(() => {
+                    mostrarModal(null, true);
+                });
+            } else {
+                marcarBanderaOriginal(e, f, c);
             }
-            ultimaBandera = {f, c};
-            marcarBanderaOriginal(e, f, c);
         }
         // Soporte long press móvil
         function iniciarLongPress(e, f, c) {
@@ -349,7 +367,7 @@
             juegoTerminado = false;
             detenerTemporizador();
             movimientos = 0;
-            document.getElementById('mina-movil-info').style.display = 'none';
+            // Elimino la lógica de mina-movil-info
             mostrarRecord();
             document.getElementById("btn-nuevo-juego").onclick = function() {
                 if (movimientos > 0) {

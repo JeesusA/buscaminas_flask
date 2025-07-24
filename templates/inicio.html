@@ -28,6 +28,7 @@
             <option value="clasico">Clásico</option>
             <option value="contrarreloj">Contrarreloj</option>
             <option value="sinbanderas">Sin banderas</option>
+            <option value="experto">1 error y pierdes</option>
         </select>
         <div id="desc-modo" style="margin: 8px 0 16px 0; font-size:1em; color:var(--text-secondary); min-height:32px;">
             Descubre todas las celdas sin minas. Usa banderas para marcar las minas. Sin límite de tiempo.
@@ -84,6 +85,8 @@
                 descModo.textContent = 'Descubre todas las celdas sin minas antes de que se acabe el tiempo. ¡Piensa y actúa rápido!';
             } else if (this.value === 'sinbanderas') {
                 descModo.textContent = 'No puedes marcar banderas. Descubre todas las celdas seguras solo usando la lógica.';
+            } else if (this.value === 'experto') {
+                descModo.textContent = 'Si marcas una bandera incorrecta o intentas descubrir una celda con bandera, pierdes inmediatamente. ¡Modo extremo!';
             }
         };
     </script>

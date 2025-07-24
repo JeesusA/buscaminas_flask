@@ -121,6 +121,7 @@ def accion():
         f = data.get('fila')
         c = data.get('columna')
         tipo = data.get('tipo')
+        modo = session.get('modo', 'clasico')
         if f is None or c is None or tipo not in ["descubrir", "bandera"]:
             return jsonify({'error': 'Datos inválidos'}), 400
         tablero = json.loads(session.get('tablero', '[]'))
@@ -137,7 +138,6 @@ def accion():
             resultado["fin"] = True
             return jsonify(resultado)
         if tipo == "descubrir":
-            # Si hay bandera, quitarla y descubrir la celda normalmente
             if bandera[f][c]:
                 bandera[f][c] = False
             if descubierto[f][c]:
@@ -151,7 +151,14 @@ def accion():
                 revelar(tablero, descubierto, f, c)
         elif tipo == "bandera":
             if not descubierto[f][c]:
-                bandera[f][c] = not bandera[f][c]
+                # Modo experto: perder si marcas bandera en celda sin mina
+                if modo == 'experto' and not bandera[f][c] and tablero[f][c] != -1:
+                    resultado["fin"] = True
+                    resultado["perdiste"] = True
+                    resultado["bandera_incorrecta"] = True
+                    session['juego_terminado'] = True
+                else:
+                    bandera[f][c] = not bandera[f][c]
         sin_minas = 0
         for i in range(filas):
             for j in range(columnas):
