@@ -7,8 +7,9 @@
 </head>
 <body data-filas="{{ filas }}" data-columnas="{{ columnas }}" data-minas="{{ minas }}" data-nivel="{{ nivel }}">
     <h1>🧨 Buscaminas 🧨</h1>
-    <div id="contador-banderas" style="font-size:1.2em; margin-bottom:4px; color:#ffd978;">Banderas restantes: <span id="banderas-restantes"></span></div>
-    <div id="temporizador" style="font-size:1.2em; margin-bottom:8px; color:#ffd978;">
+    <button id="toggle-dark" style="margin-bottom:10px; float:right; position:absolute; right:20px; top:20px;">🌙 Modo oscuro</button>
+    <div id="contador-banderas" style="font-size:1.2em; margin-bottom:4px; color:var(--accent);">Banderas restantes: <span id="banderas-restantes"></span></div>
+    <div id="temporizador" style="font-size:1.2em; margin-bottom:8px; color:var(--accent);">
         Tiempo: <span id="tiempo-juego">0</span> s
         <span id="record-tiempo" style="margin-left:16px; font-size:0.95em; color:#fff; background:#203057; border-radius:6px; padding:2px 10px;">Récord: <span id="mejor-tiempo">--</span> s</span>
         <button id="borrar-record" style="margin-left:10px; font-size:0.8em; background:#b70000; color:#fff; border:none; border-radius:5px; padding:2px 8px; cursor:pointer;">Borrar récord</button>
@@ -271,6 +272,31 @@
             style.innerHTML = `.celda-explotada { background: #b70000 !important; color: #fff !important; animation: none !important; }
             .extra-mina { opacity: 0.7; }`;
             document.head.appendChild(style);
+
+            // Modo oscuro/claro
+            const btnDark = document.getElementById("toggle-dark");
+            function aplicarModoOscuro() {
+                document.body.classList.add("dark-mode");
+                btnDark.textContent = "☀️ Modo claro";
+            }
+            function aplicarModoClaro() {
+                document.body.classList.remove("dark-mode");
+                btnDark.textContent = "🌙 Modo oscuro";
+            }
+            if (localStorage.getItem("modoOscuro") === "1") {
+                aplicarModoOscuro();
+            } else {
+                aplicarModoClaro();
+            }
+            btnDark.onclick = function() {
+                if (document.body.classList.contains("dark-mode")) {
+                    aplicarModoClaro();
+                    localStorage.setItem("modoOscuro", "0");
+                } else {
+                    aplicarModoOscuro();
+                    localStorage.setItem("modoOscuro", "1");
+                }
+            };
         }
         function mostrarModalReinicio() {
             const modal = document.getElementById('modal-reinicio');

@@ -4,8 +4,18 @@
     <meta charset="UTF-8">
     <title>Buscaminas - Selección de nivel</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body { background: var(--bg-main); color: var(--text-main); }
+        h1, h2 { color: var(--text-secondary); }
+        table { background: var(--bg-table); color: var(--text-main); border-radius: 8px; }
+        th, td { color: var(--text-main); }
+        button { background: var(--button-bg); color: var(--button-text); border-radius: 7px; border: none; padding: 8px 24px; margin: 8px; font-size: 1.1em; cursor: pointer; }
+        button:hover { background: var(--button-hover); color: #bfa76a; }
+        #toggle-dark { margin-bottom:10px; float:right; position:absolute; right:20px; top:20px; }
+    </style>
 </head>
 <body>
+    <button id="toggle-dark">🌙 Modo oscuro</button>
     <h1>🧨 Buscaminas 🧨</h1>
     <h2>Selecciona un nivel</h2>
     <form action="/jugar" method="post">
@@ -29,5 +39,31 @@
         {% endfor %}
     </table>
     {% endif %}
+    <script>
+        // Modo oscuro/claro universal
+        const btnDark = document.getElementById("toggle-dark");
+        function aplicarModoOscuro() {
+            document.body.classList.add("dark-mode");
+            btnDark.textContent = "☀️ Modo claro";
+        }
+        function aplicarModoClaro() {
+            document.body.classList.remove("dark-mode");
+            btnDark.textContent = "🌙 Modo oscuro";
+        }
+        if (localStorage.getItem("modoOscuro") === "1") {
+            aplicarModoOscuro();
+        } else {
+            aplicarModoClaro();
+        }
+        btnDark.onclick = function() {
+            if (document.body.classList.contains("dark-mode")) {
+                aplicarModoClaro();
+                localStorage.setItem("modoOscuro", "0");
+            } else {
+                aplicarModoOscuro();
+                localStorage.setItem("modoOscuro", "1");
+            }
+        };
+    </script>
 </body>
 </html>
