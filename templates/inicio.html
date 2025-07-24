@@ -16,6 +16,7 @@
 </head>
 <body>
     <button id="toggle-dark">🌙 Modo oscuro</button>
+    <button id="btn-tutorial" style="margin-top:10px;">¿Cómo jugar?</button>
     <h1>🧨 Buscaminas 🧨</h1>
     <h2>Selecciona un nivel</h2>
     <form action="/jugar" method="post">
@@ -63,6 +64,9 @@
                 aplicarModoOscuro();
                 localStorage.setItem("modoOscuro", "1");
             }
+        };
+        document.getElementById("btn-tutorial").onclick = function() {
+            window.location.href = "/tutorial";
         };
     </script>
 </body>

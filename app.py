@@ -83,6 +83,10 @@ def jugar():
         print(f"[ERROR jugar] {str(e)}")
         return f"Error al iniciar el juego: {str(e)}", 500
 
+@app.route("/tutorial")
+def tutorial():
+    return render_template("tutorial.html")
+
 @app.route("/accion", methods=["POST"])
 def accion():
     try:

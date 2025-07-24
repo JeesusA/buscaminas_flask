@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Tutorial Buscaminas</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        #tutorial-banner { background: var(--bg-panel); color: var(--text-main); border:2px solid var(--accent); border-radius:10px; margin:10px auto 18px auto; max-width:420px; padding:16px; font-size:1.1em; box-shadow:0 2px 12px #0001; }
+        .resaltada { box-shadow: 0 0 0 3px var(--accent) !important; z-index: 2; }
+        .adyacente { box-shadow: 0 0 0 2px var(--accent)55 !important; z-index: 1; }
+    </style>
+</head>
+<body>
+    <h1>🧨 Tutorial Buscaminas 🧨</h1>
+    <div id="tutorial-banner"></div>
+    <div id="explicacion-mina" style="background:var(--bg-panel); color:var(--text-main); border:2px solid var(--accent); border-radius:10px; margin:10px auto 18px auto; max-width:420px; padding:18px; font-size:1.1em; box-shadow:0 2px 12px #0001;">
+        <b>¿Qué es una mina?</b><br>
+        <span style="font-size:2.2em;">💣</span><br>
+        En Buscaminas, tu objetivo es descubrir todas las celdas <b>que no tienen minas</b>.<br>
+        Si haces clic en una mina, <span style="color:#b70000; font-weight:bold;">pierdes la partida</span>.<br><br>
+        <button id="btn-iniciar-tutorial" style="margin-top:10px;">¡Entendido! Empezar tutorial</button>
+    </div>
+    <div id="contenedor-tablero" style="display:none;">
+        <div id="tablero"></div>
+    </div>
+    <button id="btn-finalizar" style="display:none; margin-top:18px;">Volver al inicio</button>
+    <script>
+        // Configuración del tutorial
+        const filas = 5, columnas = 5, minas = 3;
+        // Tablero fijo para el tutorial (puedes personalizar la posición de las minas)
+        const tablero = [
+            [0, 1, -1, 1, 0],
+            [0, 1, 1, 2, 1],
+            [0, 0, 0, 1, -1],
+            [0, 0, 0, 1, 1],
+            [0, 0, 0, 0, 0]
+        ];
+        let descubierto = Array.from({length: filas}, () => Array(columnas).fill(false));
+        let bandera = Array.from({length: filas}, () => Array(columnas).fill(false));
+        let paso = 0;
+        // Modifico pasos para incluir perder y ganar
+        const pasos = [
+            {
+                mensaje: 'Haz clic en la celda resaltada para descubrirla. (Las celdas vacías no tienen minas alrededor)',
+                celda: {f: 4, c: 2},
+                tipo: 'descubrir',
+                validar: (f, c) => f === 4 && c === 2
+            },
+            {
+                mensaje: '¡Bien! Las celdas vacías se descubren en cadena. Ahora haz clic en la celda resaltada para ver un número.',
+                celda: {f: 1, c: 1},
+                tipo: 'descubrir',
+                validar: (f, c) => f === 1 && c === 1
+            },
+            {
+                mensaje: 'El número <b>1</b> indica que hay <b>1 mina</b> en las 8 celdas alrededor. Haz clic en la siguiente celda para ver un <b>2</b>.',
+                celda: {f: 1, c: 3},
+                tipo: 'descubrir',
+                validar: (f, c) => f === 1 && c === 3
+            },
+            {
+                mensaje: 'El número <b>2</b> indica que hay <b>2 minas</b> en las 8 celdas alrededor. Ahora, <b>deduce</b> en qué celda hay una mina y márcala con una bandera (clic derecho o long press en móvil).',
+                celda: null,
+                tipo: 'bandera-deduccion',
+                validar: (f, c) => f === 0 && c === 2
+            },
+            {
+                mensaje: 'Ahora haz clic en la celda resaltada para ver qué pasa si descubres una mina.',
+                celda: {f: 0, c: 2},
+                tipo: 'mina',
+                validar: (f, c) => f === 0 && c === 2
+            },
+            {
+                mensaje: '<span style="color:#b70000;font-weight:bold;">¡BOOM! Has descubierto una mina y perdiste la partida.</span><br>Así termina el juego si tocas una mina. Haz clic en el botón para continuar.',
+                celda: null,
+                tipo: 'perdiste',
+                validar: () => true
+            },
+            {
+                mensaje: 'Ahora descubre la última celda segura para ganar el juego.',
+                celda: {f: 4, c: 4},
+                tipo: 'descubrir',
+                validar: (f, c) => f === 4 && c === 4
+            },
+            {
+                mensaje: '<span style="color:green;font-weight:bold;">¡Felicidades! Has descubierto todas las celdas seguras y ganaste el juego.</span><br>¡Ahora puedes jugar Buscaminas como un experto! 🎉',
+                celda: null,
+                tipo: 'fin',
+                validar: () => true
+            },
+            {
+                mensaje: '<b>Tips y mejores prácticas:</b><ul style="text-align:left;max-width:350px;margin:10px auto;">'
+                    +'<li>Empieza por las esquinas o bordes si hay muchas celdas vacías.</li>'
+                    +'<li>Usa la lógica: los números te dicen cuántas minas hay alrededor.</li>'
+                    +'<li>Marca banderas solo donde estés seguro de que hay una mina.</li>'
+                    +'<li>Si tienes que adivinar, hazlo en la zona con menos riesgo.</li>'
+                    +'<li>¡No te desanimes si pierdes, la práctica hace al maestro!</li>'
+                    +'</ul>',
+                celda: null,
+                tipo: 'tips',
+                validar: () => true
+            }
+        ];
+        function crearTablero() {
+            let t = "<table>";
+            for (let f = 0; f < filas; f++) {
+                t += "<tr>";
+                for (let c = 0; c < columnas; c++) {
+                    let contenido = "";
+                    let clase = "";
+                    let disabled = "";
+                    if (descubierto[f][c]) {
+                        if (tablero[f][c] === -1) {
+                            contenido = "💣";
+                        } else if (typeof tablero[f][c] === "number" && tablero[f][c] > 0) {
+                            contenido = tablero[f][c];
+                        } else {
+                            contenido = "";
+                        }
+                        clase = "descubierto";
+                    } else if (bandera[f][c]) {
+                        contenido = "🚩";
+                        clase = "bandera";
+                    }
+                    // Solo permite acción en la celda del paso actual
+                    if (pasos[paso].celda && (f !== pasos[paso].celda.f || c !== pasos[paso].celda.c)) {
+                        disabled = 'style="pointer-events:none;opacity:0.5;"';
+                    }
+                    if (pasos[paso].celda && f === pasos[paso].celda.f && c === pasos[paso].celda.c) {
+                        clase += " resaltada";
+                    }
+                    t += `<td class="${clase}"
+                        data-f="${f}" data-c="${c}"
+                        onclick="descubrir(${f},${c})"
+                        oncontextmenu="marcarBandera(event,${f},${c})"
+                        ${disabled}>
+                        ${contenido}
+                    </td>`;
+                }
+                t += "</tr>";
+            }
+            t += "</table>";
+            document.getElementById("tablero").innerHTML = t;
+        }
+        // Modifico descubrir para pasos de mina y ganar
+        window.descubrir = function(f, c) {
+            if (pasos[paso].tipo === 'descubrir' && pasos[paso].validar(f, c)) {
+                descubierto[f][c] = true;
+                paso++;
+                actualizarTutorial();
+            } else if (pasos[paso].tipo === 'mina' && pasos[paso].validar(f, c)) {
+                descubierto[f][c] = true;
+                paso++;
+                actualizarTutorial();
+            }
+        }
+        // Modifico marcarBandera para el paso de deducción
+        window.marcarBandera = function(e, f, c) {
+            if (e) e.preventDefault();
+            if (pasos[paso].tipo === 'bandera' && pasos[paso].validar(f, c)) {
+                bandera[f][c] = !bandera[f][c];
+                paso++;
+                actualizarTutorial();
+            } else if (pasos[paso].tipo === 'bandera-deduccion') {
+                if (f === 0 && c === 2) {
+                    bandera[f][c] = !bandera[f][c];
+                    paso++;
+                    actualizarTutorial();
+                } else {
+                    document.getElementById('tutorial-banner').innerHTML = pasos[paso].mensaje + '<br><span style="color:#b70000;">Esa no es la celda correcta, ¡intenta de nuevo!</span>';
+                    crearTablero();
+                }
+            }
+        }
+        // Elimino funciones y lógica de resaltarAdyacentes y los botones de explicación de números. Solo dejo la explicación textual en los pasos.
+        function actualizarTutorial() {
+            if (pasos[paso].tipo === 'perdiste') {
+                document.getElementById('tutorial-banner').innerHTML = pasos[paso].mensaje + '<br><button id="btn-continuar" style="margin-top:10px;">Continuar</button>';
+                crearTablero();
+                document.getElementById('btn-finalizar').style.display = 'none';
+                document.getElementById('btn-continuar').onclick = function() {
+                    paso++;
+                    actualizarTutorial();
+                };
+            } else if (pasos[paso].tipo === 'fin') {
+                document.getElementById('tutorial-banner').innerHTML = pasos[paso].mensaje + '<br><button id="btn-tips" style="margin-top:10px;">Ver tips y mejores prácticas</button>';
+                crearTablero();
+                document.getElementById('btn-finalizar').style.display = 'none';
+                document.getElementById('btn-tips').onclick = function() {
+                    paso++;
+                    actualizarTutorial();
+                };
+            } else if (pasos[paso].tipo === 'tips') {
+                document.getElementById('tutorial-banner').innerHTML = pasos[paso].mensaje + '<br><button id="btn-jugar" style="margin:10px 8px 0 0;">Jugar ahora</button><button id="btn-repetir" style="margin:10px 0 0 8px;">Repetir tutorial</button>';
+                crearTablero();
+                document.getElementById('btn-finalizar').style.display = 'none';
+                document.getElementById('btn-jugar').onclick = function() {
+                    window.location.href = '/';
+                };
+                document.getElementById('btn-repetir').onclick = function() {
+                    window.location.reload();
+                };
+            } else if (paso < pasos.length - 1) {
+                document.getElementById('tutorial-banner').innerHTML = pasos[paso].mensaje;
+                crearTablero();
+                document.getElementById('btn-finalizar').style.display = 'none';
+            } else {
+                document.getElementById('tutorial-banner').innerHTML = pasos[paso].mensaje;
+                crearTablero();
+                document.getElementById('btn-finalizar').style.display = '';
+            }
+        }
+        document.getElementById('btn-finalizar').onclick = function() {
+            window.location.href = '/';
+        };
+        document.getElementById('btn-iniciar-tutorial').onclick = function() {
+            document.getElementById('explicacion-mina').style.display = 'none';
+            document.getElementById('contenedor-tablero').style.display = '';
+            actualizarTutorial();
+        };
+        // Iniciar tutorial: solo mostrar explicación de mina
+        document.getElementById('contenedor-tablero').style.display = 'none';
+        document.getElementById('btn-finalizar').style.display = 'none';
+    </script>
+</body>
+</html> 

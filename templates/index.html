@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <title>Buscaminas Flask</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .resaltada { box-shadow: 0 0 0 3px var(--accent) !important; z-index: 2; }
+        .adyacente { box-shadow: 0 0 0 2px var(--accent)55 !important; z-index: 1; }
+    </style>
 </head>
 <body data-filas="{{ filas }}" data-columnas="{{ columnas }}" data-minas="{{ minas }}" data-nivel="{{ nivel }}">
     <h1>🧨 Buscaminas 🧨</h1>
@@ -91,6 +95,7 @@
                 for (let c = 0; c < columnas; c++) {
                     let contenido = "";
                     let clase = "";
+                    let disabled = "";
                     if (descubierto[f][c]) {
                         if (tablero[f][c] === -1) {
                             contenido = ganaste ? "🏁" : "💣";
@@ -107,16 +112,25 @@
                         contenido = "🚩";
                         clase = "bandera";
                     } else if (fin && tablero[f][c] === -1) {
-                        // Mostrar minas no descubiertas al final
                         contenido = ganaste ? "🏁" : "💣";
                         clase = "descubierto extra-mina";
                     }
+                    // Tutorial: solo permite clic en la celda indicada
+                    // if (esTutorial && pasoTutorial === 0 && (f !== celdaTutorial.f || c !== celdaTutorial.c)) {
+                    //     disabled = 'style="pointer-events:none;opacity:0.5;"';
+                    // }
+                    // if (esTutorial && pasoTutorial === 0 && f === celdaTutorial.f && c === celdaTutorial.c) {
+                    //     clase += " resaltada";
+                    // }
                     t += `<td class="${clase}"
+                        data-f="${f}" data-c="${c}"
                         onclick="descubrir(${f},${c})"
                         oncontextmenu="marcarBandera(event,${f},${c})"
                         ontouchstart="iniciarLongPress(event,${f},${c})"
                         ontouchend="cancelarLongPress(event)"
-                        ontouchmove="cancelarLongPress(event)">
+                        ontouchmove="cancelarLongPress(event)"
+                        onmouseover="resaltarCeldas(${f},${c})"
+                        onmouseout="quitarResaltado()" ${disabled}>
                         ${contenido}
                     </td>`;
                 }
@@ -127,50 +141,68 @@
             actualizarContadorBanderas();
         }
 
-        function descubrir(f, c) {
-            if (juegoTerminado) return;
-            if (!juegoIniciado) {
-                iniciarTemporizador();
-                juegoIniciado = true;
-            }
-            movimientos++;
-            if (longPressTriggered) {
-                longPressTriggered = false;
-                return;
-            }
-            if (descubierto[f][c]) return;
-            const modal = document.getElementById('modal-fin');
-            if (modal.classList.contains('modal-visible')) return;
-            fetch('/accion', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({fila: f, columna: c, tipo: "descubrir"})
-            }).then(r => r.json()).then(res => {
-                descubierto = res.descubierto;
-                bandera = res.bandera;
-                if (res.tablero) tablero = res.tablero;
-                if (res.fin) {
-                    if (res.perdiste) {
-                        crearTablero(descubierto, bandera, tablero, true, [f, c], false);
-                    } else {
-                        crearTablero(descubierto, bandera, tablero, true, null, true);
-                    }
-                    detenerTemporizador();
-                    setTimeout(function() {
-                        mostrarModal(res.ganaste);
-                        if (res.ganaste) {
-                            fetch('/record', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({nivel: nivel})});
-                        }
-                    }, 1000);
-                    // Aseguro que juegoIniciado se marque como false al finalizar
-                    juegoIniciado = false;
-                    juegoTerminado = true;
-                } else {
-                    crearTablero(descubierto, bandera, tablero, false);
+        // Defino descubrir en window si no existe
+        if (!window.descubrir) {
+            window.descubrir = function(f, c) {
+                if (juegoTerminado) return;
+                if (!juegoIniciado) {
+                    iniciarTemporizador();
+                    juegoIniciado = true;
                 }
-            }).catch(() => {
-                mostrarModal(null, true);
-            });
+                movimientos++;
+                if (longPressTriggered) {
+                    longPressTriggered = false;
+                    return;
+                }
+                if (descubierto[f][c]) return;
+                const modal = document.getElementById('modal-fin');
+                if (modal.classList.contains('modal-visible')) return;
+                fetch('/accion', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({fila: f, columna: c, tipo: "descubrir"})
+                }).then(r => r.json()).then(res => {
+                    descubierto = res.descubierto;
+                    bandera = res.bandera;
+                    if (res.tablero) tablero = res.tablero;
+                    if (res.fin) {
+                        if (res.perdiste) {
+                            crearTablero(descubierto, bandera, tablero, true, [f, c], false);
+                        } else {
+                            crearTablero(descubierto, bandera, tablero, true, null, true);
+                        }
+                        detenerTemporizador();
+                        setTimeout(function() {
+                            mostrarModal(res.ganaste);
+                            if (res.ganaste) {
+                                fetch('/record', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({nivel: nivel})});
+                            }
+                        }, 1000);
+                        // Aseguro que juegoIniciado se marque como false al finalizar
+                        juegoIniciado = false;
+                        juegoTerminado = true;
+                    } else {
+                        crearTablero(descubierto, bandera, tablero, false);
+                    }
+                }).catch(() => {
+                    mostrarModal(null, true);
+                });
+            }
+        }
+        // Modifico descubrir para avanzar el tutorial
+        const descubrirOriginal = window.descubrir;
+        window.descubrir = function(f, c) {
+            // if (esTutorial && pasoTutorial === 0) {
+            //     if (f === celdaTutorial.f && c === celdaTutorial.c) {
+            //         pasoTutorial = 1;
+            //         document.getElementById('tutorial-banner').innerHTML = '<b>¡Bien hecho!</b><br>Ahora intenta marcar una bandera en una celda que creas que tiene mina (clic derecho o long press).';
+            //         // Permitir clicks normales en el resto del tablero
+            //         crearTablero(descubierto, bandera, tablero, false);
+            //     } else {
+            //         return;
+            //     }
+            // }
+            descubrirOriginal(f, c);
         }
         function marcarBandera(e, f, c) {
             if (juegoTerminado) return;
@@ -307,6 +339,29 @@
             const modal = document.getElementById('modal-reinicio');
             modal.classList.remove('modal-visible');
             modal.classList.add('modal-oculto');
+        }
+        // Resaltado de celdas adyacentes
+        function resaltarCeldas(f, c) {
+            quitarResaltado();
+            const tabla = document.getElementById("tablero");
+            const celdas = tabla.getElementsByTagName("td");
+            for (let i = 0; i < celdas.length; i++) {
+                let cf = parseInt(celdas[i].getAttribute("data-f"));
+                let cc = parseInt(celdas[i].getAttribute("data-c"));
+                if (cf === f && cc === c) {
+                    celdas[i].classList.add("resaltada");
+                } else if (Math.abs(cf - f) <= 1 && Math.abs(cc - c) <= 1) {
+                    celdas[i].classList.add("adyacente");
+                }
+            }
+        }
+        function quitarResaltado() {
+            const tabla = document.getElementById("tablero");
+            const celdas = tabla.getElementsByTagName("td");
+            for (let i = 0; i < celdas.length; i++) {
+                celdas[i].classList.remove("resaltada");
+                celdas[i].classList.remove("adyacente");
+            }
         }
     </script>
 </body>

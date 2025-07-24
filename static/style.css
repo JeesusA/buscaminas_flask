@@ -110,11 +110,12 @@ td.descubierto {
     background: var(--cell-discovered);
     color: var(--text-main);
     cursor: default;
-    animation: popCell 0.18s;
+    animation: popCell 0.28s cubic-bezier(.4,1.6,.6,1) both;
 }
 @keyframes popCell {
-    from { transform: scale(0.92); }
-    to { transform: scale(1); }
+    0% { transform: scale(0.85); opacity: 0.5; }
+    60% { transform: scale(1.08); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
 }
 
 td.bandera {
