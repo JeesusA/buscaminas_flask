@@ -25,6 +25,18 @@
     </div>
     <button id="btn-finalizar" style="display:none; margin-top:18px;">Volver al inicio</button>
     <script>
+        // Modo oscuro/claro universal
+        function aplicarModoOscuro() {
+            document.body.classList.add("dark-mode");
+        }
+        function aplicarModoClaro() {
+            document.body.classList.remove("dark-mode");
+        }
+        if (localStorage.getItem("modoOscuro") === "1") {
+            aplicarModoOscuro();
+        } else {
+            aplicarModoClaro();
+        }
         // Configuración del tutorial
         const filas = 5, columnas = 5, minas = 3;
         // Tablero fijo para el tutorial (puedes personalizar la posición de las minas)
