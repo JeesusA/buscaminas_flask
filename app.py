@@ -16,16 +16,44 @@ def crear_tablero(filas, columnas, minas):
     if filas < 5 or columnas < 5 or minas < 1 or minas >= filas * columnas:
         raise ValueError("Parámetros inválidos para el tablero.")
     tablero = [[0 for _ in range(columnas)] for _ in range(filas)]
-    # Generar todas las posiciones posibles
     todas_pos = [(f, c) for f in range(filas) for c in range(columnas)]
-    bombas = set(random.sample(todas_pos, minas))
+    bombas = set()
+    max_adyacentes = 5  # Máximo de minas adyacentes permitidas por celda
+    intentos = 0
+    random.shuffle(todas_pos)
+    for f, c in todas_pos:
+        if len(bombas) >= minas:
+            break
+        # Simula colocar la mina y verifica adyacentes
+        adyacentes = [(i, j) for i in range(max(0, f-1), min(filas, f+2))
+                              for j in range(max(0, c-1), min(columnas, c+2))
+                              if not (i == f and j == c)]
+        excede = False
+        for i, j in adyacentes:
+            count = 0
+            for ii in range(max(0, i-1), min(filas, i+2)):
+                for jj in range(max(0, j-1), min(columnas, j+2)):
+                    if (ii, jj) in bombas or (ii == f and jj == c):
+                        count += 1
+            if count > max_adyacentes:
+                excede = True
+                break
+        if not excede:
+            bombas.add((f, c))
+        intentos += 1
+        if intentos > filas * columnas * 2:
+            break  # Evita bucles infinitos
+    # Si faltan minas, colócalas aleatoriamente sin restricción
+    restantes = minas - len(bombas)
+    if restantes > 0:
+        libres = [pos for pos in todas_pos if pos not in bombas]
+        bombas.update(random.sample(libres, restantes))
     for f, c in bombas:
         tablero[f][c] = -1
     for f in range(filas):
         for c in range(columnas):
             if tablero[f][c] == -1:
                 continue
-            # Contar minas alrededor
             count = 0
             for i in range(max(0, f-1), min(filas, f+2)):
                 for j in range(max(0, c-1), min(columnas, c+2)):

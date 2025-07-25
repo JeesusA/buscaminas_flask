@@ -10,6 +10,12 @@
         .adyacente { box-shadow: 0 0 0 2px var(--accent)55 !important; z-index: 1; }
         .bomba-perdida { background: #b70000 !important; color: #fff !important; border: 2.5px solid #b70000 !important; animation: none !important; }
         .celda-explotada { background: #7a001a !important; color: #fff !important; border: 2.5px solid #b70000 !important; animation: none !important; }
+        .celda-presionada {
+            background: #b0b8c9 !important;
+            box-shadow: 0 0 8px #7da2c7aa;
+            transform: scale(0.96);
+            transition: background 0.1s, box-shadow 0.1s, transform 0.1s;
+        }
         body { font-family: 'Bungee', Arial, sans-serif; }
         h1, h2, #contador-banderas, #temporizador, #mensaje, .modal-contenido h2, .modal-contenido button, button {
             font-family: 'Bungee', Arial, sans-serif !important;
@@ -161,6 +167,25 @@
         0%, 100% { filter: brightness(1); }
         50% { filter: brightness(2.2); }
     }
+        /* Animación de explosión de bomba */
+        .bomba-explota {
+            animation: bombaPop 0.32s cubic-bezier(.4,1.6,.6,1) both;
+            background: #b70000 !important;
+            color: #fff !important;
+            box-shadow: 0 0 16px 6px #b7000088 !important;
+            border: 2.5px solid #fff !important;
+        }
+        @keyframes bombaPop {
+            0% { transform: scale(0.7); opacity: 0.5; }
+            60% { transform: scale(1.25); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .bandera-incorrecta {
+            background: #ffb4b4 !important;
+            color: #b70000 !important;
+            font-size: 1.5em;
+            animation: bombaPop 0.32s cubic-bezier(.4,1.6,.6,1) both;
+        }
     </style>
 </head>
 <body data-filas="{{ filas }}" data-columnas="{{ columnas }}" data-minas="{{ minas }}" data-nivel="{{ nivel }}">
@@ -206,6 +231,8 @@
     </div>
     <div id="fragmentos-overlay"></div>
     <div id="emoji-explosion-bg"></div>
+    <!-- GIF de explosión al perder -->
+    <img id="gif-explosion" src="{{ url_for('static', filename='explosion.gif') }}" style="display:none; position:fixed; left:0; top:0; width:100vw; height:100vh; object-fit:cover; z-index:900; pointer-events:none; opacity:0.85;">
 
     <!-- Modal de fin de juego -->
     <div id="modal-fin" class="modal-oculto">
@@ -315,8 +342,14 @@
                             clase += " celda-explotada";
                         }
                     } else if (bandera[f][c]) {
-                        contenido = "🚩";
-                        clase = "bandera";
+                        // Si el juego terminó y la bandera es incorrecta
+                        if (fin && tablero[f][c] !== -1) {
+                            contenido = "❌";
+                            clase = "bandera bandera-incorrecta";
+                        } else {
+                            contenido = "🚩";
+                            clase = "bandera";
+                        }
                         if (ultimaBandera && f === ultimaBandera.f && c === ultimaBandera.c) {
                             clase += " animar-flag";
                         }
@@ -348,6 +381,27 @@
             t += "</table>";
             document.getElementById("tablero").innerHTML = t;
             actualizarContadorBanderas();
+            // Efecto visual de celda presionada
+            const tabla = document.getElementById("tablero");
+            const celdas = tabla.getElementsByTagName("td");
+            for (let i = 0; i < celdas.length; i++) {
+                celdas[i].onmousedown = function() {
+                    this.classList.add("celda-presionada");
+                };
+                celdas[i].onmouseup = function() {
+                    this.classList.remove("celda-presionada");
+                };
+                celdas[i].onmouseleave = function() {
+                    this.classList.remove("celda-presionada");
+                };
+                // Para móviles
+                celdas[i].ontouchstart = function() {
+                    this.classList.add("celda-presionada");
+                };
+                celdas[i].ontouchend = function() {
+                    this.classList.remove("celda-presionada");
+                };
+            }
             // Limpio la animación después de un ciclo
             setTimeout(() => { ultimaDescubierta = null; ultimaBandera = null; }, 350);
         }
@@ -378,16 +432,18 @@
                 if (res.fin) {
                     if (res.perdiste) {
                         crearTablero(descubierto, bandera, tablero, true, [f, c], false);
+                        detenerTemporizador();
+                        setTimeout(function() {
+                            mostrarModal(false);
+                        }, 1000);
                     } else {
                         crearTablero(descubierto, bandera, tablero, true, null, true);
-                    }
-                    detenerTemporizador();
-                    setTimeout(function() {
-                        mostrarModal(res.ganaste);
-                        if (res.ganaste) {
+                        detenerTemporizador();
+                        setTimeout(function() {
+                            mostrarModal(true);
                             fetch('/record', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({nivel: nivel})});
-                        }
-                    }, 1000);
+                        }, 1000);
+                    }
                     juegoIniciado = false;
                     juegoTerminado = true;
                 } else {
@@ -602,9 +658,15 @@
             setTimeout(()=>{ overlay.style.opacity = 0; }, 260);
             setTimeout(()=>{ overlay.style.display = 'none'; }, 510);
             setTimeout(()=>{ document.body.classList.remove('shake-derrota'); }, 1250);
-            animarExplosionEmoji(callback);
+            // Mostrar GIF de explosión grande de fondo
+            const gif = document.getElementById('gif-explosion');
+            gif.style.display = 'block';
+            setTimeout(()=>{
+                gif.style.display = 'none';
+                if (callback) callback();
+            }, 2300);
         }
-        function mostrarModal(ganaste, error=false, mensajeExtra=null) {
+        function mostrarModal(ganaste, error=false, mensajeExtra=null, celdaExplotada=null) {
             const modal = document.getElementById('modal-fin');
             const emoji = document.getElementById('modal-emoji');
             const mensaje = document.getElementById('modal-mensaje');
