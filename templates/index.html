@@ -401,7 +401,7 @@
                     let disabled = "";
                     if (descubierto[f][c]) {
                         if (tablero[f][c] === -1) {
-                            contenido = ganaste ? "🏁" : "💣";
+                            contenido = ganaste ? "🏁" : '<img src="/static/bomba.gif" alt="💣" style="width:40px; height:32px; margin-left:2px;">';
                         } else if (typeof tablero[f][c] === "number" && tablero[f][c] > 0) {
                             contenido = tablero[f][c];
                         } else {
@@ -427,7 +427,7 @@
                             clase += " animar-flag";
                         }
                     } else if (fin && tablero[f][c] === -1) {
-                        contenido = ganaste ? "🏁" : "💣";
+                        contenido = ganaste ? "🏁" : '<img src="/static/bomba.gif" alt="💣" style="width:40px; height:32px; margin-left:2px;">';
                         clase = "descubierto bomba-perdida";
                     }
                     t += `<td class="${clase}"
@@ -684,7 +684,7 @@
         }
         function animarExplosionEmoji(callback) {
             const emojiDiv = document.getElementById('emoji-explosion-bg');
-            emojiDiv.textContent = '💣';
+            emojiDiv.innerHTML = '<img src="/static/bomba.gif" alt="💣" style="width:100%; height:100%;">';
             emojiDiv.style.opacity = 0;
             emojiDiv.style.transform = 'translate(-50%, -50%) scale(0.2)';
             emojiDiv.style.display = 'block';
@@ -702,7 +702,7 @@
             }, 950);
             setTimeout(()=>{
                 emojiDiv.className = '';
-                emojiDiv.textContent = '💥';
+                emojiDiv.innerHTML = '<img src="/static/explosion.gif" alt="💥" style="width:100%; height:100%;">';
                 emojiDiv.className = 'emoji-explosion-huge emoji-explosion-flash';
             }, 1100);
             // Desvanece explosión
@@ -758,7 +758,7 @@
                 modal.classList.add('modal-visible');
                 detenerTemporizador();
             } else {
-                emoji.textContent = '💣';
+                emoji.innerHTML = '<img src="/static/bomba.gif" alt="💣" style="width:70px; height:70px; display:block; margin:auto; vertical-align:middle;">';
                 mensaje.textContent = '¡BOOM! Explotaste we';
                 animarDerrota(()=>{
                     modal.classList.remove('modal-oculto');

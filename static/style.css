@@ -91,6 +91,15 @@ table {
     padding: 6px;
 }
 
+/* Mejorar alineación de imágenes en celdas */
+td img {
+    vertical-align: middle;
+    margin-top: -2px;
+    border-radius: 3px;
+    object-fit: cover;
+}
+
+/* Asegurar que las celdas usen flexbox para centrado perfecto */
 td {
     width: 40px;
     height: 40px;
@@ -98,11 +107,12 @@ td {
     background: var(--cell-default);
     color: var(--text-main);
     border: 2.5px solid var(--cell-border);
-    cursor: pointer;
-    transition: 0.18s cubic-bezier(.4,2,.6,1);
-    text-align: center;
     border-radius: 8px;
-    box-shadow: 0 1px 4px rgba(30,30,60,0.10);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-align: center;
+    vertical-align: middle;
+    line-height: 1;
     position: relative;
 }
 

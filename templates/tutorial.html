@@ -22,7 +22,7 @@
     <div id="tutorial-banner"></div>
     <div id="explicacion-mina" style="background:var(--bg-panel); color:var(--text-main); border:2px solid var(--accent); border-radius:10px; margin:10px auto 18px auto; max-width:420px; padding:18px; font-size:1.1em; box-shadow:0 2px 12px #0001;">
         <b>¿Qué es una mina?</b><br>
-        <span style="font-size:2.2em;">💣</span><br>
+        <img src="/static/bomba.gif" alt="💣" style="width:100px; height:80px;"><br>
         En Buscaminas, tu objetivo es descubrir todas las celdas <b>que no tienen minas</b>.<br>
         Si haces clic en una mina, <span style="color:#b70000; font-weight:bold;">pierdes la partida</span>.<br><br>
         <button id="btn-iniciar-tutorial" style="margin-top:10px;">¡Entendido! Empezar tutorial</button>
@@ -130,7 +130,7 @@
                     let disabled = "";
                     if (descubierto[f][c]) {
                         if (tablero[f][c] === -1) {
-                            contenido = "💣";
+                            contenido = '<img src="/static/bomba.gif" alt="💣" style="width:40px; height:32px; margin-left:2px;">';
                         } else if (typeof tablero[f][c] === "number" && tablero[f][c] > 0) {
                             contenido = tablero[f][c];
                         } else {
