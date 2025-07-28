@@ -227,11 +227,30 @@
     </script>
     <script>
 function cargarRankingGlobal(nivel = "Fácil") {
+    console.log('Cargando ranking para nivel:', nivel);
     fetch('/api/ranking?nivel=' + encodeURIComponent(nivel))
-        .then(r => r.json())
+        .then(r => {
+            console.log('Respuesta del servidor:', r.status, r.statusText);
+            return r.json();
+        })
         .then(data => {
+            console.log('Datos recibidos:', data);
             const tbody = document.querySelector("#tabla-ranking tbody");
             tbody.innerHTML = "";
+            
+            if (data.error) {
+                console.error('Error en datos:', data.error);
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:red;">Error: ${data.error}</td></tr>`;
+                return;
+            }
+            
+            if (!data.records || data.records.length === 0) {
+                console.log('No hay récords disponibles');
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:gray;">No hay récords disponibles</td></tr>';
+                return;
+            }
+            
+            console.log('Procesando', data.records.length, 'récords');
             data.records.forEach((rec, idx) => {
                 const tr = document.createElement("tr");
                 tr.classList.add("fila-ranking");
@@ -244,6 +263,11 @@ function cargarRankingGlobal(nivel = "Fácil") {
                 `;
                 tbody.appendChild(tr);
             });
+        })
+        .catch(error => {
+            console.error('Error al cargar ranking:', error);
+            const tbody = document.querySelector("#tabla-ranking tbody");
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:red;">Error al cargar el ranking</td></tr>';
         });
 }
 window.addEventListener('DOMContentLoaded', function() {
