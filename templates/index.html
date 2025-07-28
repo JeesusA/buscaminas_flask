@@ -186,6 +186,61 @@
             font-size: 1.5em;
             animation: bombaPop 0.32s cubic-bezier(.4,1.6,.6,1) both;
         }
+    .modal-apodo-content {
+        font-family: 'Bungee', Arial, sans-serif;
+        font-size: 0.95em;
+        animation: modalShow 0.25s;
+        background: #fff;
+        color: #23272f;
+        border-radius: 12px;
+        padding: 24px 24px 18px 24px;
+        min-width: 260px;
+        max-width: 420px;
+        width: 95vw;
+        box-shadow: 0 4px 24px #0003;
+        position: relative;
+        z-index: 4000;
+    }
+    #cerrar-apodo {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: none;
+        border: none;
+        font-size: 1.3em;
+        cursor: pointer;
+        color: #23272f;
+        padding: 0 4px;
+        line-height: 1;
+        z-index: 10;
+    }
+    #modal-apodo input[type="text"] {
+        font-family: 'Bungee', Arial, sans-serif;
+        font-size: 1.08em;
+        padding: 10px 14px;
+        border-radius: 7px;
+        border: 1.5px solid #e9eef6;
+        margin-bottom: 14px;
+        width: 94%;
+        box-sizing: border-box;
+        outline: none;
+    }
+    #modal-apodo button {
+        font-family: 'Bungee', Arial, sans-serif;
+        font-size: 1.08em;
+        margin: 8px 10px 0 0;
+        padding: 10px 24px;
+        border-radius: 7px;
+        border: none;
+        background: #232a36;
+        color: #f4f6fa;
+        cursor: pointer;
+        transition: background 0.2s, color 0.2s;
+    }
+    #modal-apodo button:hover {
+        background: #7da2c7;
+        color: #232a36;
+    }
     </style>
 </head>
 <body data-filas="{{ filas }}" data-columnas="{{ columnas }}" data-minas="{{ minas }}" data-nivel="{{ nivel }}">
@@ -256,6 +311,24 @@
     </div>
 
     <!-- Elimino el modal de continuar partida -->
+
+    <!-- Modal de apodo para guardar récord global -->
+    <div id="modal-apodo" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(30,30,30,0.6); justify-content:center; align-items:center; z-index:4000;">
+      <div class="modal-apodo-content">
+        <button id="cerrar-apodo">&times;</button>
+        <h2 id="titulo-apodo" style="margin-top:0; font-size:1.2em;">¡Nuevo récord personal!</h2>
+        <div id="mensaje-apodo" style="margin-bottom:10px;"></div>
+        <div id="apodo-form">
+          <input type="text" id="input-apodo" maxlength="16" placeholder="Tu apodo">
+          <button id="guardar-apodo">Guardar récord</button>
+        </div>
+        <div id="apodo-confirm" style="display:none;">
+          <button id="confirmar-guardar">Sí, guardar récord</button>
+          <button id="cambiar-apodo">Cambiar apodo</button>
+        </div>
+        <button id="omitir-apodo" style="background:#b70000; color:#fff; margin-top:10px;">Omitir</button>
+      </div>
+    </div>
 
     <script>
         const modo = "{{ modo|default('clasico') }}";
@@ -680,12 +753,12 @@
             } else if (ganaste) {
                 emoji.textContent = '🥳';
                 mensaje.textContent = '¡Felicidades! ¡Ganaste!';
-                let record = localStorage.getItem("record_" + nivel);
+                let recordPersonal = localStorage.getItem('record_' + nivel) || null;
                 let tiempoValido = (tiempo === 0) ? 1 : tiempo;
-                if (record === null || tiempoValido < parseInt(record)) {
-                    localStorage.setItem("record_" + nivel, tiempoValido);
-                    document.getElementById("mejor-tiempo").textContent = tiempoValido;
-                    mensaje.textContent += `\n¡Nuevo récord! 🏆`;
+                if (recordPersonal === null || tiempoValido < parseInt(recordPersonal)) {
+                    mostrarModalApodo(tiempoValido, nivel);
+                } else {
+                    mostrarModalVictoria();
                 }
                 lanzarConfetiInfinito();
                 modal.classList.remove('modal-oculto');
@@ -789,6 +862,75 @@
                 btn.addEventListener('click', detenerConfeti);
             });
         });
+        // --- MODAL DE APODO Y GUARDADO DE RECORD GLOBAL ---
+        let tiempoVictoria = 0;
+        let nivelVictoria = '';
+        function mostrarModalApodo(tiempo, nivel) {
+            tiempoVictoria = tiempo;
+            nivelVictoria = nivel;
+            const modal = document.getElementById('modal-apodo');
+            const apodo = localStorage.getItem('apodo_buscaminas') || '';
+            document.getElementById('input-apodo').value = apodo;
+            document.getElementById('apodo-form').style.display = apodo ? 'none' : 'block';
+            document.getElementById('apodo-confirm').style.display = apodo ? 'block' : 'none';
+            document.getElementById('mensaje-apodo').textContent = apodo
+                ? `${apodo}, ¡has mejorado tu récord! ¿Quieres colocarlo en el ranking global?`
+                : '¡Has logrado tu mejor tiempo! Ingresa tu apodo para guardar tu récord global:';
+            modal.style.display = 'flex';
+        }
+        document.getElementById('cerrar-apodo').onclick = function() {
+            document.getElementById('modal-apodo').style.display = 'none';
+            mostrarModalVictoria();
+        };
+        document.getElementById('omitir-apodo').onclick = function() {
+            document.getElementById('modal-apodo').style.display = 'none';
+            mostrarModalVictoria();
+        };
+        document.getElementById('guardar-apodo').onclick = function() {
+            const apodo = document.getElementById('input-apodo').value.trim();
+            if (!apodo) {
+                alert('Por favor, ingresa un apodo.');
+                return;
+            }
+            localStorage.setItem('apodo_buscaminas', apodo);
+            document.getElementById('apodo-form').style.display = 'none';
+            document.getElementById('apodo-confirm').style.display = 'block';
+            document.getElementById('mensaje-apodo').textContent = `${apodo}, ¡has mejorado tu récord! ¿Quieres colocarlo en el ranking global?`;
+        };
+        // --- UUID ÚNICO POR USUARIO ---
+        function getUserUUID() {
+            let uuid = localStorage.getItem('buscaminas_uuid');
+            if (!uuid) {
+                uuid = crypto.randomUUID ? crypto.randomUUID() : ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c=>(c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16));
+                localStorage.setItem('buscaminas_uuid', uuid);
+            }
+            return uuid;
+        }
+        document.getElementById('confirmar-guardar').onclick = function() {
+            const apodo = localStorage.getItem('apodo_buscaminas') || 'Anónimo';
+            const uuid = getUserUUID();
+            fetch('/api/record', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nombre: apodo, tiempo: tiempoVictoria, nivel: nivelVictoria, uuid: uuid })
+            }).then(() => {
+                localStorage.setItem('record_' + nivelVictoria, tiempoVictoria);
+                document.getElementById('modal-apodo').style.display = 'none';
+                setTimeout(mostrarModalVictoria, 100);
+            });
+        };
+        document.getElementById('cambiar-apodo').onclick = function() {
+            document.getElementById('apodo-form').style.display = 'block';
+            document.getElementById('apodo-confirm').style.display = 'none';
+        };
+        // --- INTEGRACIÓN CON MODAL DE VICTORIA ---
+        function mostrarModalVictoria() {
+            const modal = document.getElementById('modal-fin');
+            modal.classList.remove('modal-oculto');
+            modal.classList.add('modal-visible');
+            detenerTemporizador();
+            detenerConfeti();
+        }
     </script>
 </body>
 </html>

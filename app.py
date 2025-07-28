@@ -1,6 +1,18 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 import random
 import json
+import os
+from dotenv import load_dotenv
+from pymongo import MongoClient
+from datetime import datetime
+
+load_dotenv() # Carga las variables de entorno desde el archivo .env
+
+# URI de MongoDB
+MONGO_URI = os.getenv("MONGO_URI")
+client = MongoClient(MONGO_URI)
+db = client['buscaminas_db']
+records_collection = db['records']
 
 app = Flask(__name__)
 app.secret_key = "buscaminas_secret_key"
@@ -220,6 +232,39 @@ def record():
     except Exception as e:
         print(f"[ERROR record] {str(e)}")
         return jsonify({'error': f'Error al guardar el récord: {str(e)}'}), 500
+
+@app.route("/api/record", methods=["POST"])
+def guardar_record():
+    data = request.get_json()
+    nombre = data.get("nombre", "Anónimo")
+    tiempo = data.get("tiempo")
+    nivel = data.get("nivel", "Desconocido")
+    uuid = data.get("uuid")
+    if tiempo is None or uuid is None:
+        return jsonify({"error": "Tiempo y uuid requeridos"}), 400
+    record = {
+        "nombre": nombre,
+        "tiempo": tiempo,
+        "nivel": nivel,
+        "uuid": uuid,
+        "fecha": datetime.utcnow()
+    }
+    # Elimina cualquier récord anterior del mismo usuario y nivel
+    records_collection.delete_many({"uuid": uuid, "nivel": nivel})
+    result = records_collection.insert_one(record)
+    return jsonify({"ok": True, "id": str(result.inserted_id)})
+
+@app.route("/api/ranking", methods=["GET"])
+def ranking_global():
+    nivel = request.args.get("nivel", None)
+    filtro = {"nivel": nivel} if nivel else {}
+    # Top 10 mejores tiempos
+    records = list(records_collection.find(filtro).sort("tiempo", 1).limit(10))
+    # Convertir ObjectId y fecha a string
+    for r in records:
+        r["id"] = str(r.pop("_id"))
+        r["fecha"] = r["fecha"].strftime("%Y-%m-%d %H:%M") if "fecha" in r else ""
+    return jsonify({"records": records})
 
 def revelar(tablero, descubierto, f, c):
     if descubierto[f][c]:

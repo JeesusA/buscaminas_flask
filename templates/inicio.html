@@ -53,6 +53,71 @@
             color: var(--button-text);
             font-family: 'Bungee', Arial, sans-serif;
         }
+    /* Animación de aparición del modal de ranking */
+    @keyframes modalShow {
+        from { opacity: 0; transform: scale(0.85); }
+        to   { opacity: 1; transform: scale(1); }
+    }
+    /* Animación de aparición de filas del ranking */
+    @keyframes filaShow {
+        to { opacity: 1; transform: none; }
+    }
+    .modal-ranking-content {
+        font-family: 'Bungee', Arial, sans-serif;
+        font-size: 0.95em;
+        animation: modalShow 0.25s;
+        background: #fff;
+        color: #23272f;
+        border-radius: 12px;
+        padding: 18px 10px 14px 10px;
+        min-width: 260px;
+        max-width: 340px;
+        width: 90vw;
+        box-shadow: 0 4px 24px #0003;
+        position: relative;
+    }
+    #tabla-ranking, #tabla-ranking th, #tabla-ranking td {
+        font-family: 'Bungee', Arial, sans-serif;
+        font-size: 0.92em;
+        background: #fff;
+        color: #23272f;
+        border: 1.5px solid #e9eef6;
+        text-align: center;
+    }
+    #tabla-ranking th {
+        background: #e9eef6;
+        color: #23272f;
+        font-weight: bold;
+        padding: 4px 6px;
+    }
+    #tabla-ranking td {
+        background: #fff;
+        color: #23272f;
+        padding: 3px 6px;
+    }
+    #tabla-ranking th.fecha-col, #tabla-ranking td.fecha-col {
+        width: 38%;
+        min-width: 90px;
+        text-align: center;
+    }
+    .fila-ranking {
+        opacity: 0;
+        transform: translateY(10px);
+        animation: filaShow 0.4s forwards;
+    }
+    #cerrar-ranking {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: none;
+        border: none;
+        font-size: 1.3em;
+        cursor: pointer;
+        color: #23272f;
+        padding: 0 4px;
+        line-height: 1;
+        z-index: 10;
+    }
     </style>
 </head>
 <body>
@@ -87,6 +152,35 @@
         <label>Minas: <input type="number" name="minas" min="1" max="200" value="10" required></label><br>
         <button type="submit" name="nivel" value="personalizado">Jugar personalizado</button>
     </form>
+    <button id="btn-ranking" style="margin:10px;">Ver ranking global</button>
+    <!-- Modal de ranking global -->
+    <div id="modal-ranking" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(30,30,30,0.6); justify-content:center; align-items:center; z-index:3000;">
+      <div class="modal-ranking-content">
+        <button id="cerrar-ranking" style="position:absolute; top:8px; right:12px; background:none; border:none; font-size:1.5em; cursor:pointer;">&times;</button>
+        <h2 style="margin-top:0; font-size:1.2em;">Ranking Global</h2>
+        <label for="nivel-ranking" style="font-size:0.95em;">Nivel:</label>
+        <select id="nivel-ranking" style="margin-bottom:10px; font-size:0.95em;">
+          <option value="Fácil">Fácil</option>
+          <option value="Medio">Medio</option>
+          <option value="Difícil">Difícil</option>
+        </select>
+        <div style="max-height:260px; overflow-y:auto;">
+          <table id="tabla-ranking" style="width:100%; border-collapse:collapse; font-size:0.98em;">
+            <thead>
+              <tr>
+                <th style="padding:4px;">#</th>
+                <th style="padding:4px;">Nombre</th>
+                <th style="padding:4px;">Tiempo</th>
+                <th class="fecha-col" style="padding:4px;">Fecha</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Aquí se insertarán los récords -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
     {% if records %}
     <!-- Sección de récords eliminada temporalmente -->
     {% endif %}
@@ -130,6 +224,43 @@
                 descModo.textContent = 'Si marcas una bandera incorrecta o intentas descubrir una celda con bandera, pierdes inmediatamente. ¡Modo extremo!';
             }
         };
+    </script>
+    <script>
+function cargarRankingGlobal(nivel = "Fácil") {
+    fetch('/api/ranking?nivel=' + encodeURIComponent(nivel))
+        .then(r => r.json())
+        .then(data => {
+            const tbody = document.querySelector("#tabla-ranking tbody");
+            tbody.innerHTML = "";
+            data.records.forEach((rec, idx) => {
+                const tr = document.createElement("tr");
+                tr.classList.add("fila-ranking");
+                tr.style.animationDelay = (idx * 0.06) + "s";
+                tr.innerHTML = `
+                    <td>${idx + 1}</td>
+                    <td>${rec.nombre}</td>
+                    <td>${rec.tiempo}</td>
+                    <td class="fecha-col">${rec.fecha}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        });
+}
+window.addEventListener('DOMContentLoaded', function() {
+    // Botón para abrir el modal
+    document.getElementById('btn-ranking').onclick = function() {
+        document.getElementById('modal-ranking').style.display = 'flex';
+        cargarRankingGlobal(document.getElementById('nivel-ranking').value);
+    };
+    // Botón para cerrar el modal
+    document.getElementById('cerrar-ranking').onclick = function() {
+        document.getElementById('modal-ranking').style.display = 'none';
+    };
+    // Cambiar nivel
+    document.getElementById('nivel-ranking').onchange = function() {
+        cargarRankingGlobal(this.value);
+    };
+});
     </script>
 </body>
 </html>
