@@ -270,6 +270,37 @@ def guardar_record():
         print("MongoDB no disponible, no se puede guardar el récord.")
         return jsonify({"ok": True, "message": "MongoDB no disponible, récord no guardado."})
 
+@app.route("/api/ranking-test", methods=["GET"])
+def ranking_test():
+    """Ruta de prueba que devuelve datos sin depender de MongoDB"""
+    try:
+        nivel = request.args.get("nivel", "Fácil")
+        print(f"[DEBUG] Ranking TEST solicitado para nivel: {nivel}")
+        
+        # Datos de prueba
+        datos_prueba = {
+            "Fácil": [
+                {"nombre": "Test1", "tiempo": "00:45", "fecha": "2024-01-15 14:30"},
+                {"nombre": "Test2", "tiempo": "00:52", "fecha": "2024-01-14 09:15"}
+            ],
+            "Medio": [
+                {"nombre": "Test3", "tiempo": "02:15", "fecha": "2024-01-15 10:30"},
+                {"nombre": "Test4", "tiempo": "02:28", "fecha": "2024-01-14 15:20"}
+            ],
+            "Difícil": [
+                {"nombre": "Test5", "tiempo": "05:30", "fecha": "2024-01-15 07:15"},
+                {"nombre": "Test6", "tiempo": "05:45", "fecha": "2024-01-14 14:25"}
+            ]
+        }
+        
+        records = datos_prueba.get(nivel, datos_prueba["Fácil"])
+        print(f"[DEBUG] Devolviendo {len(records)} récords de prueba")
+        
+        return jsonify({"records": records})
+    except Exception as e:
+        print(f"[ERROR] Error en ranking_test: {e}")
+        return jsonify({"error": f"Error en ranking_test: {str(e)}"}), 500
+
 @app.route("/api/ranking", methods=["GET"])
 def ranking_global():
     try:
