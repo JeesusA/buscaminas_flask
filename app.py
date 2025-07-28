@@ -272,32 +272,36 @@ def guardar_record():
 
 @app.route("/api/ranking", methods=["GET"])
 def ranking_global():
-    nivel = request.args.get("nivel", None)
-    print(f"[DEBUG] Ranking solicitado para nivel: {nivel}")
-    print(f"[DEBUG] MongoDB disponible: {records_collection is not None}")
-    
-    filtro = {"nivel": nivel} if nivel else {}
-    print(f"[DEBUG] Filtro aplicado: {filtro}")
-    
-    # Top 10 mejores tiempos
-    if records_collection:
-        try:
-            records = list(records_collection.find(filtro).sort("tiempo", 1).limit(10))
-            print(f"[DEBUG] Récords encontrados: {len(records)}")
-            
-            # Convertir ObjectId y fecha a string
-            for r in records:
-                r["id"] = str(r.pop("_id"))
-                r["fecha"] = r["fecha"].strftime("%Y-%m-%d %H:%M") if "fecha" in r else ""
-                print(f"[DEBUG] Récord procesado: {r}")
-            
-            return jsonify({"records": records})
-        except Exception as e:
-            print(f"[ERROR] Error al obtener ranking: {e}")
-            return jsonify({"error": f"Error al obtener ranking: {str(e)}"}), 500
-    else:
-        print("[DEBUG] MongoDB no disponible, no se puede obtener el ranking.")
-        return jsonify({"error": "MongoDB no disponible, no se puede obtener el ranking."})
+    try:
+        nivel = request.args.get("nivel", None)
+        print(f"[DEBUG] Ranking solicitado para nivel: {nivel}")
+        print(f"[DEBUG] MongoDB disponible: {records_collection is not None}")
+        
+        filtro = {"nivel": nivel} if nivel else {}
+        print(f"[DEBUG] Filtro aplicado: {filtro}")
+        
+        # Top 10 mejores tiempos
+        if records_collection:
+            try:
+                records = list(records_collection.find(filtro).sort("tiempo", 1).limit(10))
+                print(f"[DEBUG] Récords encontrados: {len(records)}")
+                
+                # Convertir ObjectId y fecha a string
+                for r in records:
+                    r["id"] = str(r.pop("_id"))
+                    r["fecha"] = r["fecha"].strftime("%Y-%m-%d %H:%M") if "fecha" in r else ""
+                    print(f"[DEBUG] Récord procesado: {r}")
+                
+                return jsonify({"records": records})
+            except Exception as e:
+                print(f"[ERROR] Error al obtener ranking: {e}")
+                return jsonify({"error": f"Error al obtener ranking: {str(e)}"}), 500
+        else:
+            print("[DEBUG] MongoDB no disponible, no se puede obtener el ranking.")
+            return jsonify({"error": "MongoDB no disponible, no se puede obtener el ranking."})
+    except Exception as e:
+        print(f"[ERROR] Error general en ranking_global: {e}")
+        return jsonify({"error": f"Error interno del servidor: {str(e)}"}), 500
 
 def revelar(tablero, descubierto, f, c):
     if descubierto[f][c]:
