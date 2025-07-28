@@ -430,13 +430,6 @@
                         contenido = ganaste ? "🏁" : "💣";
                         clase = "descubierto bomba-perdida";
                     }
-                    // Tutorial: solo permite clic en la celda indicada
-                    // if (esTutorial && pasoTutorial === 0 && (f !== celdaTutorial.f || c !== celdaTutorial.c)) {
-                    //     disabled = 'style="pointer-events:none;opacity:0.5;"';
-                    // }
-                    // if (esTutorial && pasoTutorial === 0 && f === celdaTutorial.f && c === celdaTutorial.c) {
-                    //     clase += " resaltada";
-                    // }
                     t += `<td class="${clase}"
                         data-f="${f}" data-c="${c}"
                         onclick="descubrir(${f},${c})"

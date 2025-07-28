@@ -7,7 +7,7 @@ from datetime import datetime
 
 load_dotenv() # Carga las variables de entorno desde el archivo .env
 
-# Configuración de MongoDB (opcional) - Vercel deployment fix
+# Configuración de MongoDB (opcional)
 MONGO_URI = os.getenv("MONGO_URI")
 client = None
 db = None
@@ -22,10 +22,8 @@ if MONGO_URI:
         records_collection = db['records']
     except Exception as e:
         print(f"Error conectando a MongoDB: {e}")
-        # Continuar sin MongoDB
         records_collection = None
 else:
-    print("MONGO_URI no configurada, funcionando sin base de datos")
     records_collection = None
 
 app = Flask(__name__)
@@ -163,11 +161,6 @@ def tutorial():
         return redirect(url_for('inicio'))
     return render_template("tutorial.html")
 
-@app.route("/tutorial", methods=["GET"])
-def tutorial_get():
-    from flask import redirect, url_for
-    return redirect(url_for('inicio'))
-
 @app.route("/accion", methods=["POST"])
 def accion():
     try:
@@ -272,58 +265,21 @@ def guardar_record():
         print("MongoDB no disponible, no se puede guardar el récord.")
         return jsonify({"ok": True, "message": "MongoDB no disponible, récord no guardado."})
 
-@app.route("/api/ranking-test", methods=["GET"])
-def ranking_test():
-    """Ruta de prueba que devuelve datos sin depender de MongoDB"""
-    try:
-        nivel = request.args.get("nivel", "Fácil")
-        print(f"[DEBUG] Ranking TEST solicitado para nivel: {nivel}")
-        
-        # Datos de prueba
-        datos_prueba = {
-            "Fácil": [
-                {"nombre": "Test1", "tiempo": "00:45", "fecha": "2024-01-15 14:30"},
-                {"nombre": "Test2", "tiempo": "00:52", "fecha": "2024-01-14 09:15"}
-            ],
-            "Medio": [
-                {"nombre": "Test3", "tiempo": "02:15", "fecha": "2024-01-15 10:30"},
-                {"nombre": "Test4", "tiempo": "02:28", "fecha": "2024-01-14 15:20"}
-            ],
-            "Difícil": [
-                {"nombre": "Test5", "tiempo": "05:30", "fecha": "2024-01-15 07:15"},
-                {"nombre": "Test6", "tiempo": "05:45", "fecha": "2024-01-14 14:25"}
-            ]
-        }
-        
-        records = datos_prueba.get(nivel, datos_prueba["Fácil"])
-        print(f"[DEBUG] Devolviendo {len(records)} récords de prueba")
-        
-        return jsonify({"records": records})
-    except Exception as e:
-        print(f"[ERROR] Error en ranking_test: {e}")
-        return jsonify({"error": f"Error en ranking_test: {str(e)}"}), 500
-
 @app.route("/api/ranking", methods=["GET"])
 def ranking_global():
     try:
         nivel = request.args.get("nivel", None)
-        print(f"[DEBUG] Ranking solicitado para nivel: {nivel}")
-        print(f"[DEBUG] MongoDB disponible: {records_collection is not None}")
-        
         filtro = {"nivel": nivel} if nivel else {}
-        print(f"[DEBUG] Filtro aplicado: {filtro}")
         
         # Top 10 mejores tiempos
         if records_collection is not None:
             try:
                 records = list(records_collection.find(filtro).sort("tiempo", 1).limit(10))
-                print(f"[DEBUG] Récords encontrados: {len(records)}")
                 
                 # Convertir ObjectId y fecha a string
                 for r in records:
                     r["id"] = str(r.pop("_id"))
                     r["fecha"] = r["fecha"].strftime("%Y-%m-%d %H:%M") if "fecha" in r else ""
-                    print(f"[DEBUG] Récord procesado: {r}")
                 
                 return jsonify({"records": records})
             except Exception as e:
@@ -331,7 +287,6 @@ def ranking_global():
                 # Fallback a datos de prueba si hay error
                 return jsonify({"records": get_datos_fallback(nivel)})
         else:
-            print("[DEBUG] MongoDB no disponible, devolviendo datos de fallback.")
             return jsonify({"records": get_datos_fallback(nivel)})
     except Exception as e:
         print(f"[ERROR] Error general en ranking_global: {e}")
