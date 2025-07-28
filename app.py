@@ -7,7 +7,7 @@ from datetime import datetime
 
 load_dotenv() # Carga las variables de entorno desde el archivo .env
 
-# Configuración de MongoDB (opcional)
+# Configuración de MongoDB (opcional) - Vercel deployment fix
 MONGO_URI = os.getenv("MONGO_URI")
 client = None
 db = None
