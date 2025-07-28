@@ -86,6 +86,8 @@ def crear_tablero(filas, columnas, minas):
             tablero[f][c] = count
     return tablero
 
+
+
 @app.route("/")
 def inicio():
     try:
@@ -151,12 +153,10 @@ def jugar():
 
 @app.route("/jugar", methods=["GET"])
 def jugar_get():
-    from flask import redirect, url_for
     return redirect(url_for('inicio'))
 
 @app.route("/tutorial", methods=["GET", "POST"])
 def tutorial():
-    from flask import request, redirect, url_for, render_template
     if request.method == "GET":
         return redirect(url_for('inicio'))
     return render_template("tutorial.html")
@@ -265,6 +265,14 @@ def guardar_record():
         print("MongoDB no disponible, no se puede guardar el récord.")
         return jsonify({"ok": True, "message": "MongoDB no disponible, récord no guardado."})
 
+def formatear_tiempo(segundos):
+    """Convierte segundos a formato MM:SS"""
+    if isinstance(segundos, (int, float)):
+        minutos = int(segundos // 60)
+        segs = int(segundos % 60)
+        return f"{minutos:02d}:{segs:02d}"
+    return str(segundos)
+
 @app.route("/api/ranking", methods=["GET"])
 def ranking_global():
     try:
@@ -276,40 +284,23 @@ def ranking_global():
             try:
                 records = list(records_collection.find(filtro).sort("tiempo", 1).limit(10))
                 
-                # Convertir ObjectId y fecha a string
+                # Convertir ObjectId y fecha a string, formatear tiempo
                 for r in records:
                     r["id"] = str(r.pop("_id"))
                     r["fecha"] = r["fecha"].strftime("%Y-%m-%d %H:%M") if "fecha" in r else ""
+                    r["tiempo"] = formatear_tiempo(r["tiempo"])
                 
                 return jsonify({"records": records})
             except Exception as e:
                 print(f"[ERROR] Error al obtener ranking de MongoDB: {e}")
-                # Fallback a datos de prueba si hay error
-                return jsonify({"records": get_datos_fallback(nivel)})
+                return jsonify({"records": []})
         else:
-            return jsonify({"records": get_datos_fallback(nivel)})
+            return jsonify({"records": []})
     except Exception as e:
         print(f"[ERROR] Error general en ranking_global: {e}")
-        return jsonify({"records": get_datos_fallback(nivel)})
+        return jsonify({"records": []})
 
-def get_datos_fallback(nivel):
-    """Datos de fallback cuando MongoDB no está disponible"""
-    datos_fallback = {
-        "Fácil": [
-            {"nombre": "CHUPAS", "tiempo": "49", "fecha": "2025-07-28 17:41"},
-            {"nombre": "Jugador1", "tiempo": "52", "fecha": "2025-07-28 16:30"},
-            {"nombre": "Jugador2", "tiempo": "58", "fecha": "2025-07-28 15:20"}
-        ],
-        "Medio": [
-            {"nombre": "Experto1", "tiempo": "02:15", "fecha": "2025-07-28 14:30"},
-            {"nombre": "Experto2", "tiempo": "02:28", "fecha": "2025-07-28 13:20"}
-        ],
-        "Difícil": [
-            {"nombre": "Maestro1", "tiempo": "05:30", "fecha": "2025-07-28 12:15"},
-            {"nombre": "Maestro2", "tiempo": "05:45", "fecha": "2025-07-28 11:25"}
-        ]
-    }
-    return datos_fallback.get(nivel, datos_fallback["Fácil"])
+
 
 def revelar(tablero, descubierto, f, c):
     if descubierto[f][c]:
@@ -332,7 +323,6 @@ def revelar(tablero, descubierto, f, c):
 
 @app.errorhandler(404)
 def page_not_found(e):
-    from flask import redirect, url_for
     return redirect(url_for('inicio'))
 
 if __name__ == "__main__":

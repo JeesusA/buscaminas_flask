@@ -5,6 +5,7 @@
     <title>Buscaminas Flask</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Bungee&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
     <style>
         .resaltada { box-shadow: 0 0 0 3px var(--accent) !important; z-index: 2; }
         .adyacente { box-shadow: 0 0 0 2px var(--accent)55 !important; z-index: 1; }
@@ -24,17 +25,24 @@
         button, .modal-contenido button {
             font-size: 1.08em;
         }
-        #tiempo-juego { display: inline-block; min-width: 32px; }
+        #tiempo-juego { 
+            display: inline-block; 
+            min-width: 48px; 
+            font-family: 'Bungee', Arial, sans-serif;
+            font-weight: bold;
+            font-size: 1.1em;
+            color: var(--text-main);
+            letter-spacing: 1px;
+        }
+
         #confeti {
             pointer-events: none;
             position: fixed;
             top: 0; left: 0; width: 100vw; height: 100vh;
             z-index: 2000;
             overflow: hidden;
-            display: none;
         }
         #derrota-overlay {
-            pointer-events: none;
             position: fixed;
             top: 0; left: 0; width: 100vw; height: 100vh;
             z-index: 1999;
@@ -119,8 +127,8 @@
             z-index: 3500;
             display: none;
         }
-    #emoji-explosion-bg {
-        position: fixed;
+        #emoji-explosion-bg {
+            position: fixed;
         left: 50%; top: 50%;
         transform: translate(-50%, -50%) scale(0.2);
         z-index: 2500;
@@ -137,12 +145,12 @@
     }
     .emoji-explosion-vibrate {
         animation: emojiVibrate 0.35s linear 2;
-    }
+        }
     .emoji-explosion-pop {
         opacity: 0 !important;
         transform: translate(-50%, -50%) scale(0.1) !important;
         transition: opacity 0.18s, transform 0.18s cubic-bezier(.4,1.6,.6,1);
-    }
+        }
     .emoji-explosion-huge {
         opacity: 1 !important;
         transform: translate(-50%, -50%) scale(7) !important;
@@ -241,6 +249,9 @@
         background: #7da2c7;
         color: #232a36;
     }
+
+    
+
     </style>
 </head>
 <body data-filas="{{ filas }}" data-columnas="{{ columnas }}" data-minas="{{ minas }}" data-nivel="{{ nivel }}">
@@ -258,79 +269,8 @@
             aplicarModoClaro();
         }
     </script>
-    <h1>🧨 Buscaminas 🧨</h1>
-    <div id="contador-banderas" style="font-size:1.2em; margin-bottom:4px; color:var(--accent);">Banderas restantes: <span id="banderas-restantes"></span></div>
-    <div id="temporizador" style="font-size:1.2em; margin-bottom:8px; color:var(--accent);">
-        <span id="texto-tiempo"></span>
-        <span id="tiempo-juego">0</span> s
-        <span id="record-tiempo" style="margin-left:16px; font-size:0.95em; color:#fff; background:#203057; border-radius:6px; padding:2px 10px;">Récord: <span id="mejor-tiempo">--</span> s</span>
-        <button id="borrar-record" style="margin-left:10px; font-size:0.8em; background:#b70000; color:#fff; border:none; border-radius:5px; padding:2px 8px; cursor:pointer;">Borrar récord</button>
-    </div>
-    <div style="margin-bottom: 12px;">
-        <button onclick="window.location.href='/'">Menú principal</button>
-        <button id="btn-nuevo-juego">Nuevo juego</button>
-    </div>
-    <!-- Elimino el botón y mensaje de guardar partida -->
-    <div id="contenedor-tablero">
-        <div id="tablero"></div>
-    </div>
-    <div id="scroll-hint">⇆ Desliza para ver todo el tablero</div>
-    <div id="mensaje"></div>
-    <!-- Elimino el contador y mensaje de mina móvil -->
-    <div id="confeti"></div>
-    <div id="derrota-overlay"></div>
-    <div id="nube-champinon">
-        <div class="nube-cabeza"></div>
-        <div class="nube-base"></div>
-        <div class="nube-borde"></div>
-    </div>
-    <div id="fragmentos-overlay"></div>
-    <div id="emoji-explosion-bg"></div>
-    <!-- GIF de explosión al perder -->
-    <img id="gif-explosion" src="{{ url_for('static', filename='explosion.gif') }}" style="display:none; position:fixed; left:0; top:0; width:100vw; height:100vh; object-fit:cover; z-index:900; pointer-events:none; opacity:0.85;">
-
-    <!-- Modal de fin de juego -->
-    <div id="modal-fin" class="modal-oculto">
-        <div class="modal-contenido">
-            <span id="modal-emoji" style="font-size:2.5em;"></span>
-            <h2 id="modal-mensaje"></h2>
-            <button onclick="location.reload()">Nuevo juego</button>
-            <button onclick="window.location.href='/'">Menú principal</button>
-        </div>
-    </div>
-
-    <!-- Modal de confirmación de reinicio -->
-    <div id="modal-reinicio" class="modal-oculto">
-        <div class="modal-contenido">
-            <span style="font-size:2.2em;">⚠️</span>
-            <h2>¿Seguro que quieres reiniciar la partida?</h2>
-            <p>Se perderá el progreso actual.</p>
-            <button id="btn-confirmar-reinicio">Sí, reiniciar</button>
-            <button id="btn-cancelar-reinicio">Cancelar</button>
-        </div>
-    </div>
-
-    <!-- Elimino el modal de continuar partida -->
-
-    <!-- Modal de apodo para guardar récord global -->
-    <div id="modal-apodo" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(30,30,30,0.6); justify-content:center; align-items:center; z-index:4000;">
-      <div class="modal-apodo-content">
-        <button id="cerrar-apodo">&times;</button>
-        <h2 id="titulo-apodo" style="margin-top:0; font-size:1.2em;">¡Nuevo récord personal!</h2>
-        <div id="mensaje-apodo" style="margin-bottom:10px;"></div>
-        <div id="apodo-form">
-          <input type="text" id="input-apodo" maxlength="16" placeholder="Tu apodo">
-          <button id="guardar-apodo">Guardar récord</button>
-        </div>
-        <div id="apodo-confirm" style="display:none;">
-          <button id="confirmar-guardar">Sí, guardar récord</button>
-          <button id="cambiar-apodo">Cambiar apodo</button>
-        </div>
-        <button id="omitir-apodo" style="background:#b70000; color:#fff; margin-top:10px;">Omitir</button>
-      </div>
-    </div>
-
     <script>
+        
         const modo = "{{ modo|default('clasico') }}";
         const filas = parseInt(document.body.dataset.filas);
         const columnas = parseInt(document.body.dataset.columnas);
@@ -349,14 +289,21 @@
         let tiempoRestante = parseInt('{{ tiempo_limite|default(60) }}'); // Tiempo límite dinámico para contrarreloj
         let juegoIniciado = false;
         let juegoTerminado = false;
+        
+        // Función para formatear tiempo a MM:SS
+        function formatearTiempo(segundos) {
+            const minutos = Math.floor(segundos / 60);
+            const segs = segundos % 60;
+            return `${minutos.toString().padStart(2, '0')}:${segs.toString().padStart(2, '0')}`;
+        }
         function iniciarTemporizador() {
             if (timer !== null) return;
             if (modo === 'contrarreloj') {
                 document.getElementById('texto-tiempo').textContent = 'Tiempo restante: ';
-                document.getElementById('tiempo-juego').textContent = tiempoRestante;
+                document.getElementById('tiempo-juego').textContent = formatearTiempo(tiempoRestante);
                 timer = setInterval(() => {
                     tiempoRestante--;
-                    document.getElementById('tiempo-juego').textContent = tiempoRestante;
+                    document.getElementById('tiempo-juego').textContent = formatearTiempo(tiempoRestante);
                     if (tiempoRestante <= 0) {
                         detenerTemporizador();
                         mostrarModal(null, true, '¡Se acabó el tiempo!');
@@ -366,7 +313,7 @@
                 document.getElementById('texto-tiempo').textContent = 'Tiempo: ';
                 timer = setInterval(() => {
                     tiempo++;
-                    document.getElementById('tiempo-juego').textContent = tiempo;
+                    document.getElementById('tiempo-juego').textContent = formatearTiempo(tiempo);
                 }, 1000);
             }
         }
@@ -603,7 +550,7 @@
         function mostrarRecord() {
             let record = localStorage.getItem("record_" + nivel);
             if (record !== null) {
-                document.getElementById("mejor-tiempo").textContent = record;
+                document.getElementById("mejor-tiempo").textContent = formatearTiempo(parseInt(record));
             } else {
                 document.getElementById("mejor-tiempo").textContent = "--";
             }
@@ -768,26 +715,22 @@
                 });
             }
         }
-        // Elimino la lógica de mina móvil en descubrir y moverMina
-        // Elimino la función actualizarColorTemporizador y cualquier lógica de color/animación del temporizador
         window.onload = function() {
-            // Elimino la lógica de restaurar partida en window.onload
             crearTablero(descubierto, bandera, tablero, false);
             actualizarContadorBanderas();
             if (modo === 'contrarreloj') {
                 tiempoRestante = parseInt('{{ tiempo_limite|default(60) }}');
                 document.getElementById('texto-tiempo').textContent = 'Tiempo restante: ';
-                document.getElementById('tiempo-juego').textContent = tiempoRestante;
+                document.getElementById('tiempo-juego').textContent = formatearTiempo(tiempoRestante);
             } else {
                 document.getElementById('texto-tiempo').textContent = 'Tiempo: ';
-                document.getElementById('tiempo-juego').textContent = 0;
+                document.getElementById('tiempo-juego').textContent = formatearTiempo(0);
             }
             tiempo = 0;
             juegoIniciado = false;
             juegoTerminado = false;
             detenerTemporizador();
             movimientos = 0;
-            // Elimino la lógica de mina-movil-info
             mostrarRecord();
             document.getElementById("btn-nuevo-juego").onclick = function() {
                 if (movimientos > 0) {
@@ -811,8 +754,6 @@
             style.innerHTML = `.celda-explotada { background: #b70000 !important; color: #fff !important; animation: none !important; }
             .extra-mina { opacity: 0.7; }`;
             document.head.appendChild(style);
-
-            // Elimino la función encontrarCeldaSegura, la lógica de pistas y el contador de pistas
         }
         function mostrarModalReinicio() {
             const modal = document.getElementById('modal-reinicio');
@@ -848,6 +789,74 @@
             }
         }
     </script>
+    
+    <h1>🧨 Buscaminas 🧨</h1>
+    <div id="contador-banderas" style="font-size:1.2em; margin-bottom:4px; color:var(--accent);">Banderas restantes: <span id="banderas-restantes"></span></div>
+    <div id="temporizador" style="font-size:1.2em; margin-bottom:8px; color:var(--accent);">
+        <span id="texto-tiempo"></span>
+        <span id="tiempo-juego">00:00</span>
+        <span id="record-tiempo" style="margin-left:16px; font-size:0.95em; color:#fff; background:#203057; border-radius:6px; padding:2px 10px;">Récord: <span id="mejor-tiempo">--</span></span>
+        <button id="borrar-record" style="margin-left:10px; font-size:0.8em; background:#b70000; color:#fff; border:none; border-radius:5px; padding:2px 8px; cursor:pointer;">Borrar récord</button>
+    </div>
+    <div style="margin-bottom: 12px;">
+        <button onclick="window.location.href='/'">Menú principal</button>
+        <button id="btn-nuevo-juego">Nuevo juego</button>
+    </div>
+    <div id="contenedor-tablero">
+        <div id="tablero"></div>
+    </div>
+    <div id="scroll-hint">⇆ Desliza para ver todo el tablero</div>
+    <div id="mensaje"></div>
+    <div id="confeti"></div>
+    <div id="derrota-overlay"></div>
+    <div id="nube-champinon">
+        <div class="nube-cabeza"></div>
+        <div class="nube-base"></div>
+        <div class="nube-borde"></div>
+    </div>
+    <div id="fragmentos-overlay"></div>
+    <div id="emoji-explosion-bg"></div>
+    <img id="gif-explosion" src="{{ url_for('static', filename='explosion.gif') }}" style="display:none; position:fixed; left:0; top:0; width:100vw; height:100vh; object-fit:cover; z-index:900; pointer-events:none; opacity:0.85;">
+
+    <!-- Modal de fin de juego -->
+    <div id="modal-fin" class="modal-oculto">
+        <div class="modal-contenido">
+            <span id="modal-emoji" style="font-size:2.5em;"></span>
+            <h2 id="modal-mensaje"></h2>
+            <button onclick="location.reload()">Nuevo juego</button>
+            <button onclick="window.location.href='/'">Menú principal</button>
+        </div>
+    </div>
+
+    <!-- Modal de confirmación de reinicio -->
+    <div id="modal-reinicio" class="modal-oculto">
+        <div class="modal-contenido">
+            <span style="font-size:2.2em;">⚠️</span>
+            <h2>¿Seguro que quieres reiniciar la partida?</h2>
+            <p>Se perderá el progreso actual.</p>
+            <button id="btn-confirmar-reinicio">Sí, reiniciar</button>
+            <button id="btn-cancelar-reinicio">Cancelar</button>
+        </div>
+    </div>
+
+    <!-- Modal de apodo para guardar récord global -->
+    <div id="modal-apodo" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(30,30,30,0.6); justify-content:center; align-items:center; z-index:4000;">
+      <div class="modal-apodo-content">
+        <button id="cerrar-apodo">&times;</button>
+        <h2 id="titulo-apodo" style="margin-top:0; font-size:1.2em;">¡Nuevo récord personal!</h2>
+        <div id="mensaje-apodo" style="margin-bottom:10px;"></div>
+        <div id="apodo-form">
+          <input type="text" id="input-apodo" maxlength="16" placeholder="Tu apodo">
+          <button id="guardar-apodo">Guardar récord</button>
+        </div>
+        <div id="apodo-confirm" style="display:none;">
+          <button id="confirmar-guardar">Sí, guardar récord</button>
+          <button id="cambiar-apodo">Cambiar apodo</button>
+        </div>
+        <button id="omitir-apodo" style="background:#b70000; color:#fff; margin-top:10px;">Omitir</button>
+      </div>
+    </div>
+
     <script>
         // Detener confeti al cerrar modal
         document.addEventListener('DOMContentLoaded', function() {
@@ -924,6 +933,8 @@
             detenerTemporizador();
             detenerConfeti();
         }
+        
+
     </script>
 </body>
 </html>

@@ -191,7 +191,6 @@
                 }
             }
         }
-        // Elimino funciones y lógica de resaltarAdyacentes y los botones de explicación de números. Solo dejo la explicación textual en los pasos.
         function actualizarTutorial() {
             if (pasos[paso].tipo === 'perdiste') {
                 document.getElementById('tutorial-banner').innerHTML = pasos[paso].mensaje + '<br><button id="btn-continuar" style="margin-top:10px;">Continuar</button>';
