@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Buscaminas - Sala {{ sala_id }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Bungee&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Bungee', Arial, sans-serif; }
+        h1, h2, button, #jugadores-lista {
+            font-family: 'Bungee', Arial, sans-serif !important;
+            letter-spacing: 1px;
+        }
+        button { 
+            background: var(--button-bg); 
+            color: var(--button-text); 
+            border-radius: 7px; 
+            border: none; 
+            padding: 8px 24px; 
+            margin: 8px; 
+            font-size: 1.08em; 
+            cursor: pointer; 
+        }
+        button:hover { background: var(--button-hover); }
+        
+        .sala-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: var(--bg-panel);
+            border-radius: 10px;
+            border: 2px solid var(--accent);
+        }
+        
+        .jugadores-panel {
+            background: var(--bg-panel);
+            border: 2px solid var(--accent);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 10px 0;
+            max-width: 300px;
+        }
+        
+        .jugador {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: 5px;
+            background: var(--cell-default);
+        }
+        
+        .jugador-nombre {
+            font-weight: bold;
+        }
+        
+        .jugador-puntos {
+            background: var(--accent);
+            color: var(--button-text);
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.9em;
+        }
+        
+        .chat-panel {
+            background: var(--bg-panel);
+            border: 2px solid var(--accent);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 10px 0;
+            max-width: 300px;
+            max-height: 200px;
+        }
+        
+        .chat-messages {
+            height: 120px;
+            overflow-y: auto;
+            margin-bottom: 10px;
+            padding: 5px;
+            background: var(--bg-main);
+            border-radius: 5px;
+        }
+        
+        .chat-input {
+            width: 100%;
+            padding: 5px;
+            border: 1px solid var(--accent);
+            border-radius: 5px;
+            background: var(--button-bg);
+            color: var(--button-text);
+        }
+        
+        .game-container {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            align-items: flex-start;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        .game-main {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .game-sidebar {
+            width: 320px;
+            flex-shrink: 0;
+        }
+        
+        #contenedor-tablero {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            margin: 0 auto;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+            border-radius: 16px;
+            background: var(--bg-panel);
+            position: relative;
+        }
+        
+        .mensaje-sistema {
+            color: var(--accent);
+            font-style: italic;
+            font-size: 0.9em;
+        }
+        
+        .mensaje-jugador {
+            color: var(--text-main);
+            font-size: 0.9em;
+        }
+        
+        .header-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .marcador {
+            display: flex;
+            gap: 12px;
+            font-size: 0.85em;
+            color: var(--accent);
+            font-weight: bold;
+            flex-wrap: wrap;
+        }
+        
+        .controles {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        @media (max-width: 768px) {
+            .header-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .marcador {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <script>
+        // Modo oscuro/claro universal solo lectura
+        function aplicarModoOscuro() {
+            document.body.classList.add("dark-mode");
+        }
+        function aplicarModoClaro() {
+            document.body.classList.remove("dark-mode");
+        }
+        if (localStorage.getItem("modoOscuro") === "1") {
+            aplicarModoOscuro();
+        } else {
+            aplicarModoClaro();
+        }
+    </script>
+    
+    <div class="sala-header">
+        <h1>🧨 Sala {{ sala_id }} 🧨</h1>
+        <div class="header-controls">
+            <div class="marcador">
+                <span>🎯 Celdas: <span id="celdas-descubiertas">0</span>/<span id="celdas-totales">0</span></span>
+                <span>🚩 Banderas: <span id="banderas-usadas">0</span>/<span id="minas-totales">0</span></span>
+                <span>💣 Minas restantes: <span id="minas-restantes">0</span></span>
+            </div>
+            <div class="controles">
+                <span id="estado-sala">Esperando jugadores...</span>
+                <button id="btn-reiniciar" onclick="reiniciarJuego()" style="display:none;">🔄 Reiniciar</button>
+                <button onclick="window.location.href='/multijugador'">Salir</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="game-container">
+        <div class="game-main">
+            <div id="contenedor-tablero">
+                <div id="tablero"></div>
+            </div>
+            <div id="mensaje"></div>
+        </div>
+        
+        <div class="game-sidebar">
+            <div class="jugadores-panel">
+                <h3>👥 Jugadores</h3>
+                <div id="jugadores-lista">
+                    <!-- Aquí se mostrarán los jugadores -->
+                </div>
+            </div>
+            
+            <div class="chat-panel">
+                <h3>💬 Chat</h3>
+                <div id="chat-messages" class="chat-messages">
+                    <div class="mensaje-sistema">Bienvenido a la sala!</div>
+                </div>
+                <input type="text" id="chat-input" class="chat-input" placeholder="Escribe un mensaje..." maxlength="100">
+                <button onclick="enviarMensaje()">Enviar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const sala_id = '{{ sala_id }}';
+        let miNombre = '';
+        let tablero = [];
+        let descubierto = [];
+        let bandera = [];
+        let filas = 0, columnas = 0;
+        let minas = 0;
+        let salaBloqueada = true;
+        let numJugadores = 0;
+        let soyCreador = false;
+        
+        console.log('Variables inicializadas. Sala ID:', sala_id);
+        
+        // Tomar nombre de la URL o usar uno por defecto
+        const urlParams = new URLSearchParams(window.location.search);
+        const nombreIngresado = urlParams.get('nombre');
+        
+        if (nombreIngresado) {
+            miNombre = nombreIngresado;
+        } else {
+            miNombre = 'Jugador' + Math.floor(Math.random() * 1000);
+        }
+        
+        console.log('Uniéndose a sala:', sala_id, 'con nombre:', miNombre);
+        socket.emit('unirse_sala', { sala_id: sala_id, nombre: miNombre });
+        
+
+        
+        function crearTablero() {
+            console.log('Creando tablero:', filas, 'x', columnas);
+            if (filas === 0 || columnas === 0) {
+                console.log('Dimensiones inválidas, no se puede crear tablero');
+                return;
+            }
+            
+            let t = "<table>";
+            for (let f = 0; f < filas; f++) {
+                t += "<tr>";
+                for (let c = 0; c < columnas; c++) {
+                    let contenido = "";
+                    let clase = "";
+                    let disabled = "";
+                    
+                    if (salaBloqueada) {
+                        disabled = 'style="pointer-events:none;opacity:0.5;"';
+                    }
+                    
+                    if (descubierto[f] && descubierto[f][c]) {
+                        if (tablero[f] && tablero[f][c] === -1) {
+                            contenido = '<img src="/static/bomba.gif" alt="💣" style="width:40px; height:32px; margin-left:2px;">';
+                        } else if (tablero[f] && typeof tablero[f][c] === "number" && tablero[f][c] > 0) {
+                            contenido = tablero[f][c];
+                        } else {
+                            contenido = "";
+                        }
+                        clase = "descubierto";
+                    } else if (bandera[f] && bandera[f][c]) {
+                        contenido = "🚩";
+                        clase = "bandera";
+                    }
+                    
+                    t += `<td class="${clase}"
+                        data-f="${f}" data-c="${c}"
+                        onclick="descubrir(${f},${c})"
+                        oncontextmenu="marcarBandera(event,${f},${c})"
+                        ${disabled}>
+                        ${contenido}
+                    </td>`;
+                }
+                t += "</tr>";
+            }
+            t += "</table>";
+            document.getElementById("tablero").innerHTML = t;
+            console.log('Tablero creado exitosamente');
+        }
+        
+        function mostrarModal(titulo, mensaje, callback = null) {
+            const modal = document.getElementById('modal-fin');
+            const emoji = document.getElementById('modal-emoji');
+            const mensajeEl = document.getElementById('modal-mensaje');
+            
+            emoji.textContent = '⚠️';
+            mensajeEl.textContent = mensaje;
+            modal.classList.remove('modal-oculto');
+            modal.classList.add('modal-visible');
+            
+            if (callback) {
+                setTimeout(callback, 100);
+            }
+        }
+        
+        function descubrir(f, c) {
+            if (salaBloqueada) {
+                mostrarModal('Sala Bloqueada', 'Espera a que se unan más jugadores.');
+                return;
+            }
+            socket.emit('accion_multijugador', {
+                fila: f, columna: c, tipo: 'descubrir'
+            });
+        }
+        
+        function marcarBandera(e, f, c) {
+            e.preventDefault();
+            if (salaBloqueada) {
+                mostrarModal('Sala Bloqueada', 'Espera a que se unan más jugadores.');
+                return;
+            }
+            socket.emit('accion_multijugador', {
+                fila: f, columna: c, tipo: 'bandera'
+            });
+        }
+        
+        function reiniciarJuego() {
+            if (soyCreador) {
+                socket.emit('reiniciar_juego');
+            }
+        }
+        
+        function enviarMensaje() {
+            const input = document.getElementById('chat-input');
+            const mensaje = input.value.trim();
+            if (mensaje) {
+                socket.emit('mensaje_chat', { mensaje: mensaje });
+                input.value = '';
+            }
+        }
+        
+        function agregarMensajeChat(jugador, mensaje, esSistema = false) {
+            const chatMessages = document.getElementById('chat-messages');
+            const div = document.createElement('div');
+            div.className = esSistema ? 'mensaje-sistema' : 'mensaje-jugador';
+            div.textContent = esSistema ? mensaje : `${jugador}: ${mensaje}`;
+            chatMessages.appendChild(div);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        function actualizarMarcador() {
+            let celdasDescubiertas = 0;
+            let banderasUsadas = 0;
+            
+            for (let f = 0; f < filas; f++) {
+                for (let c = 0; c < columnas; c++) {
+                    if (descubierto[f][c]) celdasDescubiertas++;
+                    if (bandera[f][c]) banderasUsadas++;
+                }
+            }
+            
+            const totalCeldas = filas * columnas;
+            // Obtener el número de minas del backend
+            const totalMinas = obtenerNumeroMinas();
+            
+            const minasRestantes = totalMinas - banderasUsadas;
+            
+            document.getElementById('celdas-descubiertas').textContent = celdasDescubiertas;
+            document.getElementById('celdas-totales').textContent = totalCeldas - totalMinas;
+            document.getElementById('banderas-usadas').textContent = banderasUsadas;
+            document.getElementById('minas-totales').textContent = totalMinas;
+            document.getElementById('minas-restantes').textContent = minasRestantes;
+        }
+        
+        function obtenerNumeroMinas() {
+            // Usar el valor del backend si está disponible
+            if (minas > 0) return minas;
+            
+            // Fallback basado en el nivel de dificultad
+            if (filas === 8 && columnas === 8) return 10;  // Fácil
+            if (filas === 16 && columnas === 16) return 40; // Medio
+            if (filas === 16 && columnas === 30) return 99; // Difícil
+            return Math.floor((filas * columnas) * 0.15); // Estimación para personalizado
+        }
+        
+        function actualizarJugadores(jugadores) {
+            const lista = document.getElementById('jugadores-lista');
+            lista.innerHTML = '';
+            
+            if (!jugadores || !Array.isArray(jugadores)) {
+                console.log('No hay jugadores o formato inválido:', jugadores);
+                return;
+            }
+            
+            jugadores.forEach(jugador => {
+                const div = document.createElement('div');
+                div.className = 'jugador';
+                div.innerHTML = `
+                    <span class="jugador-nombre" style="color: ${jugador.color}">${jugador.nombre}</span>
+                    <span class="jugador-estado">🟢 Conectado</span>
+                `;
+                lista.appendChild(div);
+            });
+        }
+        
+        // Eventos de Socket.IO
+        socket.on('jugador_unido', function(data) {
+            console.log('Jugador unido:', data);
+            agregarMensajeChat('', `${data.jugador} se unió a la sala`, true);
+            actualizarJugadores(data.jugadores);
+            numJugadores = data.jugadores.length;
+            
+            // Verificar si soy el creador
+            const miJugador = data.jugadores.find(j => j.nombre === miNombre);
+            if (miJugador && miJugador.es_creador) {
+                soyCreador = true;
+                agregarMensajeChat('', '👑 Eres el anfitrión de la sala', true);
+            }
+            
+            // Desbloquear sala si hay al menos 2 jugadores
+            if (numJugadores >= 2) {
+                salaBloqueada = false;
+                document.getElementById('estado-sala').textContent = '¡Juego iniciado!';
+                agregarMensajeChat('', '¡La sala se ha desbloqueado! Ya puedes jugar.', true);
+                crearTablero(); // Recrear tablero sin bloqueo
+            }
+            
+            // Solicitar datos del tablero al servidor
+            console.log('Solicitando datos del tablero...');
+            socket.emit('solicitar_tablero');
+        });
+        
+        socket.on('actualizar_jugadores', function(data) {
+            actualizarJugadores(data.jugadores);
+            numJugadores = data.jugadores.length;
+            
+            if (numJugadores >= 2) {
+                salaBloqueada = false;
+                document.getElementById('estado-sala').textContent = '¡Juego iniciado!';
+                agregarMensajeChat('', '🎮 ¡La sala se ha desbloqueado! Ya puedes jugar.', true);
+            } else {
+                salaBloqueada = true;
+                document.getElementById('estado-sala').textContent = 'Esperando jugadores...';
+                agregarMensajeChat('', '⏳ La sala se ha bloqueado. Espera a que se unan más jugadores.', true);
+            }
+            
+            // Recrear tablero para aplicar bloqueo/desbloqueo
+            crearTablero();
+        });
+        
+        socket.on('jugador_salio', function(data) {
+            agregarMensajeChat('', `${data.jugador} salió de la sala`, true);
+        });
+        
+        socket.on('celda_descubierta', function(data) {
+            // Actualizar todo el estado de descubierto
+            descubierto = data.descubierto;
+            crearTablero();
+            actualizarMarcador();
+            
+            // Solo mostrar mensaje si descubrió más de 1 celda o es una acción importante
+            if (data.celdas_nuevas > 1) {
+                agregarMensajeChat('', `${data.jugador} descubrió ${data.celdas_nuevas} celdas`, true);
+            }
+            
+            // Verificar si ganaron
+            const totalCeldas = filas * columnas;
+            const celdasSeguras = totalCeldas - minas; // Usar la variable minas que ya tenemos
+            if (data.celdas_descubiertas >= celdasSeguras) {
+                agregarMensajeChat('', '🎉 ¡VICTORIA DEL EQUIPO! ¡Todos ganan!', true);
+                // Bloquear el tablero
+                salaBloqueada = true;
+                document.getElementById('estado-sala').textContent = '¡Victoria!';
+                
+                // Mostrar modal de victoria
+                const modal = document.getElementById('modal-fin');
+                const emoji = document.getElementById('modal-emoji');
+                const mensaje = document.getElementById('modal-mensaje');
+                
+                emoji.textContent = '🎉';
+                mensaje.textContent = '¡VICTORIA DEL EQUIPO! ¡Todos ganan!';
+                modal.classList.remove('modal-oculto');
+                modal.classList.add('modal-visible');
+                
+                // Mostrar botón de reiniciar solo al creador
+                if (soyCreador) {
+                    document.getElementById('btn-reiniciar').style.display = 'inline-block';
+                    document.getElementById('btn-reiniciar-modal').style.display = 'inline-block';
+                }
+            }
+        });
+        
+        socket.on('mina_encontrada', function(data) {
+            descubierto[data.fila][data.columna] = true;
+            crearTablero();
+            agregarMensajeChat('', `💥 ¡BOOM! ${data.jugador} encontró una mina`, true);
+            agregarMensajeChat('', '💥 ¡DERROTA DEL EQUIPO! Todos pierden', true);
+            
+            // Bloquear el tablero
+            salaBloqueada = true;
+            document.getElementById('estado-sala').textContent = '¡Derrota!';
+            
+            // Mostrar modal de derrota
+            const modal = document.getElementById('modal-fin');
+            const emoji = document.getElementById('modal-emoji');
+            const mensaje = document.getElementById('modal-mensaje');
+            
+            emoji.textContent = '💥';
+            mensaje.textContent = '¡DERROTA DEL EQUIPO! Todos pierden';
+            modal.classList.remove('modal-oculto');
+            modal.classList.add('modal-visible');
+            
+            // Mostrar botón de reiniciar solo al creador
+            if (soyCreador) {
+                document.getElementById('btn-reiniciar').style.display = 'inline-block';
+                document.getElementById('btn-reiniciar-modal').style.display = 'inline-block';
+            } else {
+                // Para jugadores no creadores, mostrar mensaje de espera
+                mensaje.textContent = '¡DERROTA DEL EQUIPO! Esperando al anfitrión...';
+            }
+        });
+        
+        socket.on('bandera_marcada', function(data) {
+            bandera[data.fila][data.columna] = data.marcada;
+            crearTablero();
+            actualizarMarcador();
+            // No mostrar mensaje por cada bandera para reducir spam
+        });
+        
+        socket.on('datos_tablero', function(data) {
+            console.log('Datos del tablero recibidos:', data);
+            tablero = data.tablero;
+            descubierto = data.descubierto;
+            bandera = data.bandera;
+            filas = data.filas;
+            columnas = data.columnas;
+            minas = data.minas || 0;
+            console.log('Dimensiones:', filas, 'x', columnas, 'Minas:', minas);
+            crearTablero();
+            actualizarMarcador();
+        });
+        
+        socket.on('mensaje_chat', function(data) {
+            agregarMensajeChat(data.jugador, data.mensaje);
+        });
+        
+        // Enviar mensaje con Enter
+        document.getElementById('chat-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                enviarMensaje();
+            }
+        });
+        
+        socket.on('connect', function() {
+            console.log('Conectado al servidor');
+        });
+        
+        socket.on('disconnect', function() {
+            console.log('Desconectado del servidor');
+        });
+        
+        socket.on('juego_reiniciado', function(data) {
+            tablero = data.tablero;
+            descubierto = data.descubierto;
+            bandera = data.bandera;
+            salaBloqueada = false;
+            document.getElementById('estado-sala').textContent = '¡Juego reiniciado!';
+            document.getElementById('btn-reiniciar').style.display = 'none';
+            document.getElementById('btn-reiniciar-modal').style.display = 'none';
+            document.getElementById('modal-fin').classList.remove('modal-visible');
+            document.getElementById('modal-fin').classList.add('modal-oculto');
+            crearTablero();
+            actualizarMarcador();
+            agregarMensajeChat('', '🔄 El juego ha sido reiniciado', true);
+        });
+    </script>
+    
+
+    
+    <!-- Modal de fin de juego -->
+    <div id="modal-fin" class="modal-oculto">
+        <div class="modal-contenido">
+            <span id="modal-emoji" style="font-size:2.5em;"></span>
+            <h2 id="modal-mensaje"></h2>
+            <button id="btn-reiniciar-modal" onclick="reiniciarJuego()" style="display:none;">🔄 Reiniciar Juego</button>
+            <button onclick="window.location.href='/multijugador'">Salir</button>
+        </div>
+    </div>
+</body>
+</html> 

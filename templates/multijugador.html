@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Buscaminas - Multijugador</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=1.1">
+    <link href="https://fonts.googleapis.com/css2?family=Bungee&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Bungee', Arial, sans-serif; }
+        h1, h2, button, input, select {
+            font-family: 'Bungee', Arial, sans-serif !important;
+            letter-spacing: 1px;
+        }
+        button { 
+            background: var(--button-bg); 
+            color: var(--button-text); 
+            border-radius: 7px; 
+            border: none; 
+            padding: 8px 24px; 
+            margin: 8px; 
+            font-size: 1.08em; 
+            cursor: pointer; 
+        }
+        button:hover { background: var(--button-hover); }
+        input, select {
+            background: var(--button-bg);
+            color: var(--button-text);
+            border: 2.5px solid var(--accent);
+            border-radius: 8px;
+            font-size: 1.08em;
+            padding: 8px 16px;
+            margin: 8px;
+            outline: none;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .seccion {
+            background: var(--bg-panel);
+            border: 2px solid var(--accent);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .jugadores-lista {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .jugador {
+            background: var(--accent);
+            color: var(--button-text);
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.9em;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            background: var(--bg-panel);
+            color: var(--text-main);
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+        }
+        
+        .modal-buttons {
+            margin-top: 20px;
+        }
+        
+        .modal-buttons button {
+            margin: 0 8px;
+        }
+    </style>
+</head>
+<body>
+    <script>
+        // Modo oscuro/claro universal solo lectura
+        function aplicarModoOscuro() {
+            document.body.classList.add("dark-mode");
+        }
+        function aplicarModoClaro() {
+            document.body.classList.remove("dark-mode");
+        }
+        if (localStorage.getItem("modoOscuro") === "1") {
+            aplicarModoOscuro();
+        } else {
+            aplicarModoClaro();
+        }
+    </script>
+    
+    <div class="container">
+        <h1>🧨 Buscaminas Multijugador 🧨</h1>
+        <div class="seccion" style="background: #4ecdc4; color: white; border-color: #45b7d1;">
+            <h2>🎮 Modo Cooperativo</h2>
+            <p><strong>¡Trabajen juntos para ganar!</strong></p>
+            <ul style="text-align: left; margin: 10px 0;">
+                <li>🎯 <strong>Objetivo:</strong> Descubrir todas las celdas sin minas</li>
+                <li>💥 <strong>Si alguien toca una mina:</strong> ¡Todos pierden!</li>
+                <li>🏆 <strong>Si descubren todas las celdas seguras:</strong> ¡Todos ganan!</li>
+                <li>👥 <strong>Mínimo 2 jugadores</strong> para comenzar</li>
+            </ul>
+        </div>
+        
+        <div class="seccion">
+            <h2>Crear Nueva Sala</h2>
+            <label for="nombre-crear">Tu nombre:</label>
+            <input type="text" id="nombre-crear" maxlength="16" placeholder="Tu nombre">
+            <br>
+            <label for="nivel-crear">Dificultad:</label>
+            <select id="nivel-crear">
+                <option value="facil">Fácil (8x8, 10 minas)</option>
+                <option value="medio">Medio (16x16, 40 minas)</option>
+                <option value="dificil">Difícil (16x30, 99 minas)</option>
+            </select>
+            <br>
+            <button onclick="crearSala()">Crear Sala</button>
+        </div>
+        
+        <div class="seccion">
+            <h2>Unirse a Sala</h2>
+            <label for="nombre-unirse">Tu nombre:</label>
+            <input type="text" id="nombre-unirse" maxlength="16" placeholder="Tu nombre">
+            <br>
+            <label for="codigo-sala">Código de sala:</label>
+            <input type="text" id="codigo-sala" maxlength="4" placeholder="1234">
+            <br>
+            <button onclick="unirseSala()">Unirse a Sala</button>
+        </div>
+        
+        <button onclick="window.location.href='/'">Volver al Menú Principal</button>
+    </div>
+    
+    <!-- Modal -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <h3 id="modal-title"></h3>
+            <p id="modal-message"></p>
+            <div class="modal-buttons">
+                <button id="modal-ok">Aceptar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js?v=1.1"></script>
+    <script>
+        const socket = io();
+        
+        function crearSala() {
+            const nombre = document.getElementById('nombre-crear').value.trim();
+            const nivel = document.getElementById('nivel-crear').value;
+            
+            console.log('Creando sala con nivel:', nivel, 'nombre:', nombre);
+            
+            if (!nombre) {
+                alert('Por favor, ingresa tu nombre.');
+                return;
+            }
+            
+            socket.emit('crear_sala', { nivel: nivel });
+        }
+        
+        function mostrarModal(titulo, mensaje, callback = null) {
+            document.getElementById('modal-title').textContent = titulo;
+            document.getElementById('modal-message').innerHTML = mensaje;
+            document.getElementById('modal').style.display = 'flex';
+            
+            const okButton = document.getElementById('modal-ok');
+            okButton.onclick = function() {
+                document.getElementById('modal').style.display = 'none';
+                if (callback) callback();
+            };
+        }
+        
+        function unirseSala() {
+            const nombre = document.getElementById('nombre-unirse').value.trim();
+            const sala_id = document.getElementById('codigo-sala').value.trim();
+            
+            console.log('Intentando unirse a sala:', sala_id, 'con nombre:', nombre);
+            
+            if (!nombre || !sala_id) {
+                mostrarModal('Error', 'Por favor, ingresa tu nombre y el código de sala.');
+                return;
+            }
+            
+            console.log('Enviando evento unirse_sala al servidor...');
+            socket.emit('unirse_sala', { sala_id: sala_id, nombre: nombre });
+            
+            // Mostrar indicador de carga
+            mostrarModal('Conectando...', 'Intentando unirse a la sala...');
+        }
+        
+        socket.on('sala_creada', function(data) {
+            console.log('Sala creada:', data);
+            const nombre = document.getElementById('nombre-crear').value.trim();
+            mostrarModal('¡Sala creada!', `Código: <strong>${data.sala_id}</strong><br>Comparte este código con otros jugadores.`, () => {
+                console.log('Redirigiendo a sala:', data.sala_id, 'con nombre:', nombre);
+                window.location.href = `/sala/${data.sala_id}?nombre=${encodeURIComponent(nombre)}`;
+            });
+        });
+        
+        socket.on('error', function(data) {
+            console.log('Error recibido:', data);
+            mostrarModal('Error', data.mensaje);
+        });
+        
+        socket.on('unirse_exitoso', function(data) {
+            console.log('Unirse exitoso recibido:', data);
+            const nombre = document.getElementById('nombre-unirse').value.trim();
+            
+            // Cerrar modal de carga y redirigir
+            document.getElementById('modal').style.display = 'none';
+            window.location.href = `/sala/${data.sala_id}?nombre=${encodeURIComponent(nombre)}`;
+        });
+        
+        // También manejar el evento de error para salas no encontradas
+        socket.on('error', function(data) {
+            console.log('Error recibido:', data);
+            // Cerrar modal de carga y mostrar error
+            document.getElementById('modal').style.display = 'none';
+            mostrarModal('Error', data.mensaje);
+        });
+        
+        socket.on('connect', function() {
+            console.log('Conectado al servidor');
+        });
+        
+        socket.on('disconnect', function() {
+            console.log('Desconectado del servidor');
+        });
+    </script>
+</body>
+</html> 

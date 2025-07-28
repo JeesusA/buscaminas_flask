@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
+from flask_socketio import SocketIO, emit, join_room, leave_room
 import random
 import json
 import os
@@ -28,6 +29,11 @@ else:
 
 app = Flask(__name__)
 app.secret_key = "buscaminas_secret_key"
+socketio = SocketIO(app, cors_allowed_origins="*")
+
+# Variables globales para multijugador
+salas = {}  # {sala_id: {tablero, jugadores, estado}}
+jugadores = {}  # {session_id: {nombre, sala_id, color}}
 
 # Niveles predefinidos: (nombre, filas, columnas, minas)
 NIVELES = [
@@ -96,6 +102,16 @@ def inicio():
     except Exception as e:
         print(f"[ERROR inicio] {str(e)}")
         return f"Error al cargar la página de inicio: {str(e)}", 500
+
+@app.route("/multijugador")
+def multijugador():
+    return render_template("multijugador.html")
+
+@app.route("/sala/<sala_id>")
+def sala(sala_id):
+    if sala_id not in salas:
+        return redirect(url_for('multijugador'))
+    return render_template("sala.html", sala_id=sala_id)
 
 @app.route("/jugar", methods=["POST"])
 def jugar():
@@ -325,5 +341,244 @@ def revelar(tablero, descubierto, f, c):
 def page_not_found(e):
     return redirect(url_for('inicio'))
 
+# Eventos de Socket.IO para multijugador
+@socketio.on('connect')
+def handle_connect():
+    print(f"Cliente conectado: {request.sid}")
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    session_id = request.sid
+    if session_id in jugadores:
+        jugador = jugadores[session_id]
+        sala_id = jugador['sala_id']
+        if sala_id in salas:
+            salas[sala_id]['jugadores'].pop(session_id, None)
+            if len(salas[sala_id]['jugadores']) == 0:
+                del salas[sala_id]
+            else:
+                # Notificar a los jugadores restantes
+                emit('jugador_salio', {'jugador': jugador['nombre']}, room=sala_id)
+                emit('actualizar_jugadores', {
+                    'jugadores': list(salas[sala_id]['jugadores'].values())
+                }, room=sala_id)
+        del jugadores[session_id]
+
+@socketio.on('crear_sala')
+def handle_crear_sala(data):
+    sala_id = str(random.randint(1000, 9999))
+    nivel = data.get('nivel', 'facil')
+    
+    if nivel == 'facil':
+        filas, columnas, minas = 8, 8, 10
+    elif nivel == 'medio':
+        filas, columnas, minas = 16, 16, 40
+    else:
+        filas, columnas, minas = 16, 30, 99
+    
+    tablero = crear_tablero(filas, columnas, minas)
+    colores = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#ff9ff3']
+    
+    salas[sala_id] = {
+        'tablero': tablero,
+        'descubierto': [[False for _ in range(columnas)] for _ in range(filas)],
+        'bandera': [[False for _ in range(columnas)] for _ in range(filas)],
+        'jugadores': {},
+        'estado': 'esperando',
+        'filas': filas,
+        'columnas': columnas,
+        'minas': minas,
+        'creador': None  # Se establecerá cuando se una el primer jugador
+    }
+    
+    emit('sala_creada', {'sala_id': sala_id})
+
+@socketio.on('unirse_sala')
+def handle_unirse_sala(data):
+    sala_id = data['sala_id']
+    nombre = data['nombre']
+    
+    print(f"[DEBUG] Intento de unirse a sala {sala_id} con nombre {nombre}")
+    
+    if sala_id not in salas:
+        print(f"[DEBUG] Sala {sala_id} no encontrada")
+        emit('error', {'mensaje': 'Sala no encontrada'})
+        return
+    
+    session_id = request.sid
+    colores = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#ff9ff3']
+    color = colores[len(salas[sala_id]['jugadores']) % len(colores)]
+    
+    jugadores[session_id] = {
+        'nombre': nombre,
+        'sala_id': sala_id,
+        'color': color
+    }
+    
+    # Si es el primer jugador, es el creador
+    if len(salas[sala_id]['jugadores']) == 0:
+        salas[sala_id]['creador'] = session_id
+    
+    salas[sala_id]['jugadores'][session_id] = {
+        'nombre': nombre,
+        'color': color,
+        'es_creador': salas[sala_id]['creador'] == session_id
+    }
+    
+    join_room(sala_id)
+    emit('jugador_unido', {
+        'jugador': nombre,
+        'color': color,
+        'jugadores': list(salas[sala_id]['jugadores'].values())
+    }, room=sala_id)
+    
+    # Enviar actualización a todos los jugadores en la sala
+    emit('actualizar_jugadores', {
+        'jugadores': list(salas[sala_id]['jugadores'].values())
+    }, room=sala_id)
+    
+    # Confirmar unión exitosa al jugador que se unió
+    print(f"[DEBUG] Enviando unirse_exitoso a {nombre}")
+    emit('unirse_exitoso', {
+        'sala_id': sala_id,
+        'nombre': nombre
+    })
+
+@socketio.on('accion_multijugador')
+def handle_accion_multijugador(data):
+    session_id = request.sid
+    if session_id not in jugadores:
+        return
+    
+    jugador = jugadores[session_id]
+    sala_id = jugador['sala_id']
+    
+    if sala_id not in salas:
+        return
+    
+    sala = salas[sala_id]
+    f = data['fila']
+    c = data['columna']
+    tipo = data['tipo']
+    
+    if tipo == 'descubrir':
+        if sala['descubierto'][f][c]:
+            return
+        
+        if sala['tablero'][f][c] == -1:
+            # Mina encontrada - TODOS PIERDEN
+            sala['descubierto'][f][c] = True
+            sala['estado'] = 'perdido'
+            emit('mina_encontrada', {
+                'fila': f, 'columna': c,
+                'jugador': jugador['nombre'],
+                'estado': 'perdido'
+            }, room=sala_id)
+        else:
+            # Celda segura - aplicar algoritmo de revelación
+            revelar(sala['tablero'], sala['descubierto'], f, c)
+            celdas_descubiertas = sum(sum(sala['descubierto'], []))
+            
+            # Contar celdas descubiertas en esta acción
+            celdas_nuevas = 0
+            for i in range(sala['filas']):
+                for j in range(sala['columnas']):
+                    if sala['descubierto'][i][j]:
+                        celdas_nuevas += 1
+            
+            # Enviar todo el estado actualizado
+            emit('celda_descubierta', {
+                'fila': f, 'columna': c,
+                'jugador': jugador['nombre'],
+                'descubierto': sala['descubierto'],
+                'celdas_descubiertas': celdas_descubiertas,
+                'celdas_nuevas': celdas_nuevas
+            }, room=sala_id)
+    
+    elif tipo == 'bandera':
+        if not sala['descubierto'][f][c]:
+            sala['bandera'][f][c] = not sala['bandera'][f][c]
+            emit('bandera_marcada', {
+                'fila': f, 'columna': c,
+                'jugador': jugador['nombre'],
+                'marcada': sala['bandera'][f][c]
+            }, room=sala_id)
+
+@socketio.on('solicitar_tablero')
+def handle_solicitar_tablero():
+    session_id = request.sid
+    print(f"[DEBUG] Solicitud de tablero desde session_id: {session_id}")
+    
+    if session_id not in jugadores:
+        print(f"[DEBUG] Session_id {session_id} no encontrado en jugadores")
+        return
+    
+    jugador = jugadores[session_id]
+    sala_id = jugador['sala_id']
+    print(f"[DEBUG] Jugador {jugador['nombre']} solicitando tablero de sala {sala_id}")
+    
+    if sala_id not in salas:
+        print(f"[DEBUG] Sala {sala_id} no encontrada")
+        return
+    
+    sala = salas[sala_id]
+    print(f"[DEBUG] Enviando datos del tablero: {sala['filas']}x{sala['columnas']}, {sala['minas']} minas")
+    emit('datos_tablero', {
+        'tablero': sala['tablero'],
+        'descubierto': sala['descubierto'],
+        'bandera': sala['bandera'],
+        'filas': sala['filas'],
+        'columnas': sala['columnas'],
+        'minas': sala['minas']
+    })
+
+@socketio.on('mensaje_chat')
+def handle_mensaje_chat(data):
+    session_id = request.sid
+    if session_id not in jugadores:
+        return
+    
+    jugador = jugadores[session_id]
+    sala_id = jugador['sala_id']
+    
+    if sala_id not in salas:
+        return
+    
+    emit('mensaje_chat', {
+        'jugador': jugador['nombre'],
+        'mensaje': data['mensaje']
+    }, room=sala_id)
+
+@socketio.on('reiniciar_juego')
+def handle_reiniciar_juego():
+    session_id = request.sid
+    if session_id not in jugadores:
+        return
+    
+    jugador = jugadores[session_id]
+    sala_id = jugador['sala_id']
+    
+    if sala_id not in salas:
+        return
+    
+    # Solo el creador puede reiniciar
+    if not salas[sala_id]['jugadores'][session_id]['es_creador']:
+        return
+    
+    # Reiniciar el tablero
+    sala = salas[sala_id]
+    tablero = crear_tablero(sala['filas'], sala['columnas'], sala['minas'])
+    
+    salas[sala_id]['tablero'] = tablero
+    salas[sala_id]['descubierto'] = [[False for _ in range(sala['columnas'])] for _ in range(sala['filas'])]
+    salas[sala_id]['bandera'] = [[False for _ in range(sala['columnas'])] for _ in range(sala['filas'])]
+    salas[sala_id]['estado'] = 'esperando'
+    
+    emit('juego_reiniciado', {
+        'tablero': tablero,
+        'descubierto': salas[sala_id]['descubierto'],
+        'bandera': salas[sala_id]['bandera']
+    }, room=sala_id)
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    socketio.run(app, debug=True)
