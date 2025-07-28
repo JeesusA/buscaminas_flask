@@ -23,8 +23,10 @@ if MONGO_URI:
     except Exception as e:
         print(f"Error conectando a MongoDB: {e}")
         # Continuar sin MongoDB
+        records_collection = None
 else:
     print("MONGO_URI no configurada, funcionando sin base de datos")
+    records_collection = None
 
 app = Flask(__name__)
 app.secret_key = "buscaminas_secret_key"
@@ -262,7 +264,7 @@ def guardar_record():
         "fecha": datetime.utcnow()
     }
     # Elimina cualquier récord anterior del mismo usuario y nivel
-    if records_collection:
+    if records_collection is not None:
         records_collection.delete_many({"uuid": uuid, "nivel": nivel})
         result = records_collection.insert_one(record)
         return jsonify({"ok": True, "id": str(result.inserted_id)})
@@ -312,7 +314,7 @@ def ranking_global():
         print(f"[DEBUG] Filtro aplicado: {filtro}")
         
         # Top 10 mejores tiempos
-        if records_collection:
+        if records_collection is not None:
             try:
                 records = list(records_collection.find(filtro).sort("tiempo", 1).limit(10))
                 print(f"[DEBUG] Récords encontrados: {len(records)}")
