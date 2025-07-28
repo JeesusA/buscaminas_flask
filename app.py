@@ -3,16 +3,28 @@ import random
 import json
 import os
 from dotenv import load_dotenv
-from pymongo import MongoClient
 from datetime import datetime
 
 load_dotenv() # Carga las variables de entorno desde el archivo .env
 
-# URI de MongoDB
+# Configuración de MongoDB (opcional)
 MONGO_URI = os.getenv("MONGO_URI")
-client = MongoClient(MONGO_URI)
-db = client['buscaminas_db']
-records_collection = db['records']
+client = None
+db = None
+records_collection = None
+
+# Intentar conectar a MongoDB solo si la URI está disponible
+if MONGO_URI:
+    try:
+        from pymongo import MongoClient
+        client = MongoClient(MONGO_URI)
+        db = client['buscaminas_db']
+        records_collection = db['records']
+    except Exception as e:
+        print(f"Error conectando a MongoDB: {e}")
+        # Continuar sin MongoDB
+else:
+    print("MONGO_URI no configurada, funcionando sin base de datos")
 
 app = Flask(__name__)
 app.secret_key = "buscaminas_secret_key"
@@ -250,21 +262,29 @@ def guardar_record():
         "fecha": datetime.utcnow()
     }
     # Elimina cualquier récord anterior del mismo usuario y nivel
-    records_collection.delete_many({"uuid": uuid, "nivel": nivel})
-    result = records_collection.insert_one(record)
-    return jsonify({"ok": True, "id": str(result.inserted_id)})
+    if records_collection:
+        records_collection.delete_many({"uuid": uuid, "nivel": nivel})
+        result = records_collection.insert_one(record)
+        return jsonify({"ok": True, "id": str(result.inserted_id)})
+    else:
+        print("MongoDB no disponible, no se puede guardar el récord.")
+        return jsonify({"ok": True, "message": "MongoDB no disponible, récord no guardado."})
 
 @app.route("/api/ranking", methods=["GET"])
 def ranking_global():
     nivel = request.args.get("nivel", None)
     filtro = {"nivel": nivel} if nivel else {}
     # Top 10 mejores tiempos
-    records = list(records_collection.find(filtro).sort("tiempo", 1).limit(10))
-    # Convertir ObjectId y fecha a string
-    for r in records:
-        r["id"] = str(r.pop("_id"))
-        r["fecha"] = r["fecha"].strftime("%Y-%m-%d %H:%M") if "fecha" in r else ""
-    return jsonify({"records": records})
+    if records_collection:
+        records = list(records_collection.find(filtro).sort("tiempo", 1).limit(10))
+        # Convertir ObjectId y fecha a string
+        for r in records:
+            r["id"] = str(r.pop("_id"))
+            r["fecha"] = r["fecha"].strftime("%Y-%m-%d %H:%M") if "fecha" in r else ""
+        return jsonify({"records": records})
+    else:
+        print("MongoDB no disponible, no se puede obtener el ranking.")
+        return jsonify({"error": "MongoDB no disponible, no se puede obtener el ranking."})
 
 def revelar(tablero, descubierto, f, c):
     if descubierto[f][c]:
