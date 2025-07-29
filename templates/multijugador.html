@@ -161,11 +161,21 @@
     <script>
         const socket = io();
         
+        // Generar UUID único para este jugador
+        function generarUUID() {
+            if (crypto.randomUUID) {
+                return crypto.randomUUID();
+            } else {
+                return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c=>(c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16));
+            }
+        }
+        
         function crearSala() {
             const nombre = document.getElementById('nombre-crear').value.trim();
             const nivel = document.getElementById('nivel-crear').value;
+            const uuid = generarUUID();
             
-            console.log('Creando sala con nivel:', nivel, 'nombre:', nombre);
+            console.log('Creando sala con nivel:', nivel, 'nombre:', nombre, 'UUID:', uuid);
             
             if (!nombre) {
                 alert('Por favor, ingresa tu nombre.');
@@ -190,8 +200,9 @@
         function unirseSala() {
             const nombre = document.getElementById('nombre-unirse').value.trim();
             const sala_id = document.getElementById('codigo-sala').value.trim();
+            const uuid = generarUUID();
             
-            console.log('Intentando unirse a sala:', sala_id, 'con nombre:', nombre);
+            console.log('Intentando unirse a sala:', sala_id, 'con nombre:', nombre, 'UUID:', uuid);
             
             if (!nombre || !sala_id) {
                 mostrarModal('Error', 'Por favor, ingresa tu nombre y el código de sala.');
@@ -199,7 +210,7 @@
             }
             
             console.log('Enviando evento unirse_sala al servidor...');
-            socket.emit('unirse_sala', { sala_id: sala_id, nombre: nombre });
+            socket.emit('unirse_sala', { sala_id: sala_id, nombre: nombre, uuid: uuid });
             
             // Mostrar indicador de carga
             mostrarModal('Conectando...', 'Intentando unirse a la sala...');

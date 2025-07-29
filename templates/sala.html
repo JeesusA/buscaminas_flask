@@ -6,6 +6,12 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Bungee&display=swap" rel="stylesheet">
     <style>
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        
         body { font-family: 'Bungee', Arial, sans-serif; }
         h1, h2, button, #jugadores-lista {
             font-family: 'Bungee', Arial, sans-serif !important;
@@ -200,6 +206,7 @@
             </div>
             <div class="controles">
                 <span id="estado-sala">Esperando jugadores...</span>
+                <span id="turno-actual" style="display:none; color: #4ecdc4; font-weight: bold;">🎯 Tu turno</span>
                 <button id="btn-reiniciar" onclick="reiniciarJuego()" style="display:none;">🔄 Reiniciar</button>
                 <button onclick="window.location.href='/multijugador'">Salir</button>
             </div>
@@ -217,7 +224,7 @@
         <div class="game-sidebar">
             <div class="jugadores-panel">
                 <h3>👥 Jugadores</h3>
-                <div id="jugadores-lista">
+                <div id="jugadores-lista" data-jugadores="[]">
                     <!-- Aquí se mostrarán los jugadores -->
                 </div>
             </div>
@@ -238,6 +245,7 @@
         const socket = io();
         const sala_id = '{{ sala_id }}';
         let miNombre = '';
+        let miUUID = '';
         let tablero = [];
         let descubierto = [];
         let bandera = [];
@@ -246,10 +254,21 @@
         let salaBloqueada = true;
         let numJugadores = 0;
         let soyCreador = false;
+        let esMiTurno = false;
+        let uuidActual = null;
+        let mensajesMostrados = {
+            anfitrion: false,
+            salaDesbloqueada: false
+        };
         
-        console.log('Variables inicializadas. Sala ID:', sala_id);
+        function generarUUID() {
+            if (crypto.randomUUID) {
+                return crypto.randomUUID();
+            } else {
+                return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c=>(c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16));
+            }
+        }
         
-        // Tomar nombre de la URL o usar uno por defecto
         const urlParams = new URLSearchParams(window.location.search);
         const nombreIngresado = urlParams.get('nombre');
         
@@ -259,15 +278,13 @@
             miNombre = 'Jugador' + Math.floor(Math.random() * 1000);
         }
         
-        console.log('Uniéndose a sala:', sala_id, 'con nombre:', miNombre);
-        socket.emit('unirse_sala', { sala_id: sala_id, nombre: miNombre });
+        miUUID = generarUUID();
+        socket.emit('unirse_sala', { sala_id: sala_id, nombre: miNombre, uuid: miUUID });
         
 
         
         function crearTablero() {
-            console.log('Creando tablero:', filas, 'x', columnas);
             if (filas === 0 || columnas === 0) {
-                console.log('Dimensiones inválidas, no se puede crear tablero');
                 return;
             }
             
@@ -279,7 +296,7 @@
                     let clase = "";
                     let disabled = "";
                     
-                    if (salaBloqueada) {
+                    if (salaBloqueada || !esMiTurno) {
                         disabled = 'style="pointer-events:none;opacity:0.5;"';
                     }
                     
@@ -309,7 +326,6 @@
             }
             t += "</table>";
             document.getElementById("tablero").innerHTML = t;
-            console.log('Tablero creado exitosamente');
         }
         
         function mostrarModal(titulo, mensaje, callback = null) {
@@ -332,6 +348,9 @@
                 mostrarModal('Sala Bloqueada', 'Espera a que se unan más jugadores.');
                 return;
             }
+            if (!esMiTurno) {
+                return;
+            }
             socket.emit('accion_multijugador', {
                 fila: f, columna: c, tipo: 'descubrir'
             });
@@ -343,9 +362,39 @@
                 mostrarModal('Sala Bloqueada', 'Espera a que se unan más jugadores.');
                 return;
             }
+            if (!esMiTurno) {
+                return;
+            }
             socket.emit('accion_multijugador', {
                 fila: f, columna: c, tipo: 'bandera'
             });
+        }
+        
+        function mostrarModalTurno() {
+            const modal = document.getElementById('modal-turno');
+            modal.classList.remove('modal-oculto');
+            modal.classList.add('modal-visible');
+        }
+        
+        function cerrarModalTurno() {
+            const modal = document.getElementById('modal-turno');
+            modal.classList.remove('modal-visible');
+            modal.classList.add('modal-oculto');
+        }
+        
+        function actualizarIndicadorTurno() {
+            const turnoElement = document.getElementById('turno-actual');
+            if (esMiTurno && !salaBloqueada) {
+                turnoElement.style.display = 'inline';
+                turnoElement.textContent = '🎯 Tu turno';
+                turnoElement.style.animation = 'pulse 1.5s infinite';
+                
+                // Mostrar modal de notificación de turno
+                mostrarModalTurno();
+            } else {
+                turnoElement.style.display = 'none';
+                turnoElement.style.animation = 'none';
+            }
         }
         
         function reiniciarJuego() {
@@ -412,63 +461,81 @@
             lista.innerHTML = '';
             
             if (!jugadores || !Array.isArray(jugadores)) {
-                console.log('No hay jugadores o formato inválido:', jugadores);
                 return;
             }
             
             jugadores.forEach(jugador => {
                 const div = document.createElement('div');
                 div.className = 'jugador';
+                const esTurnoActual = jugador.uuid === uuidActual;
                 div.innerHTML = `
                     <span class="jugador-nombre" style="color: ${jugador.color}">${jugador.nombre}</span>
-                    <span class="jugador-estado">🟢 Conectado</span>
+                    <span class="jugador-estado">${esTurnoActual ? '🎯 Su turno' : '🟢 Conectado'}</span>
                 `;
                 lista.appendChild(div);
             });
         }
         
-        // Eventos de Socket.IO
         socket.on('jugador_unido', function(data) {
-            console.log('Jugador unido:', data);
             agregarMensajeChat('', `${data.jugador} se unió a la sala`, true);
             actualizarJugadores(data.jugadores);
             numJugadores = data.jugadores.length;
             
-            // Verificar si soy el creador
             const miJugador = data.jugadores.find(j => j.nombre === miNombre);
-            if (miJugador && miJugador.es_creador) {
+            if (miJugador && miJugador.es_creador && !soyCreador) {
                 soyCreador = true;
-                agregarMensajeChat('', '👑 Eres el anfitrión de la sala', true);
+                if (!mensajesMostrados.anfitrion) {
+                    agregarMensajeChat('', '👑 Eres el anfitrión de la sala', true);
+                    mensajesMostrados.anfitrion = true;
+                }
             }
             
-            // Desbloquear sala si hay al menos 2 jugadores
-            if (numJugadores >= 2) {
+            if (numJugadores >= 2 && salaBloqueada) {
                 salaBloqueada = false;
                 document.getElementById('estado-sala').textContent = '¡Juego iniciado!';
-                agregarMensajeChat('', '¡La sala se ha desbloqueado! Ya puedes jugar.', true);
-                crearTablero(); // Recrear tablero sin bloqueo
+                if (!mensajesMostrados.salaDesbloqueada) {
+                    agregarMensajeChat('', '🎮 ¡La sala se ha desbloqueado! El juego comienza por turnos.', true);
+                    mensajesMostrados.salaDesbloqueada = true;
+                }
+                crearTablero();
             }
             
-            // Solicitar datos del tablero al servidor
-            console.log('Solicitando datos del tablero...');
             socket.emit('solicitar_tablero');
+        });
+        
+        socket.on('turno_asignado', function(data) {
+            uuidActual = data.uuid_actual;
+            esMiTurno = (miUUID === data.uuid_actual);
+            
+            agregarMensajeChat('', `🎯 ${data.jugador_actual} tiene el primer turno`, true);
+            
+            actualizarIndicadorTurno();
+            actualizarJugadores(document.querySelector('#jugadores-lista').dataset.jugadores ? JSON.parse(document.querySelector('#jugadores-lista').dataset.jugadores) : []);
+            crearTablero();
         });
         
         socket.on('actualizar_jugadores', function(data) {
             actualizarJugadores(data.jugadores);
             numJugadores = data.jugadores.length;
             
-            if (numJugadores >= 2) {
+            document.querySelector('#jugadores-lista').dataset.jugadores = JSON.stringify(data.jugadores);
+            
+            if (numJugadores >= 2 && salaBloqueada) {
                 salaBloqueada = false;
                 document.getElementById('estado-sala').textContent = '¡Juego iniciado!';
-                agregarMensajeChat('', '🎮 ¡La sala se ha desbloqueado! Ya puedes jugar.', true);
-            } else {
+                if (!mensajesMostrados.salaDesbloqueada) {
+                    agregarMensajeChat('', '🎮 ¡La sala se ha desbloqueado! El juego comienza por turnos.', true);
+                    mensajesMostrados.salaDesbloqueada = true;
+                }
+                socket.emit('solicitar_tablero');
+            } else if (numJugadores < 2 && !salaBloqueada) {
                 salaBloqueada = true;
                 document.getElementById('estado-sala').textContent = 'Esperando jugadores...';
-                agregarMensajeChat('', '⏳ La sala se ha bloqueado. Espera a que se unan más jugadores.', true);
+                esMiTurno = false;
+                uuidActual = null;
+                actualizarIndicadorTurno();
             }
             
-            // Recrear tablero para aplicar bloqueo/desbloqueo
             crearTablero();
         });
         
@@ -477,26 +544,21 @@
         });
         
         socket.on('celda_descubierta', function(data) {
-            // Actualizar todo el estado de descubierto
             descubierto = data.descubierto;
+            uuidActual = data.uuid_siguiente;
+            esMiTurno = data.es_tu_turno;
+            
             crearTablero();
             actualizarMarcador();
+            actualizarIndicadorTurno();
             
-            // Solo mostrar mensaje si descubrió más de 1 celda o es una acción importante
-            if (data.celdas_nuevas > 1) {
-                agregarMensajeChat('', `${data.jugador} descubrió ${data.celdas_nuevas} celdas`, true);
-            }
-            
-            // Verificar si ganaron
             const totalCeldas = filas * columnas;
-            const celdasSeguras = totalCeldas - minas; // Usar la variable minas que ya tenemos
+            const celdasSeguras = totalCeldas - minas;
             if (data.celdas_descubiertas >= celdasSeguras) {
                 agregarMensajeChat('', '🎉 ¡VICTORIA DEL EQUIPO! ¡Todos ganan!', true);
-                // Bloquear el tablero
                 salaBloqueada = true;
                 document.getElementById('estado-sala').textContent = '¡Victoria!';
                 
-                // Mostrar modal de victoria
                 const modal = document.getElementById('modal-fin');
                 const emoji = document.getElementById('modal-emoji');
                 const mensaje = document.getElementById('modal-mensaje');
@@ -506,7 +568,6 @@
                 modal.classList.remove('modal-oculto');
                 modal.classList.add('modal-visible');
                 
-                // Mostrar botón de reiniciar solo al creador
                 if (soyCreador) {
                     document.getElementById('btn-reiniciar').style.display = 'inline-block';
                     document.getElementById('btn-reiniciar-modal').style.display = 'inline-block';
@@ -520,11 +581,9 @@
             agregarMensajeChat('', `💥 ¡BOOM! ${data.jugador} encontró una mina`, true);
             agregarMensajeChat('', '💥 ¡DERROTA DEL EQUIPO! Todos pierden', true);
             
-            // Bloquear el tablero
             salaBloqueada = true;
             document.getElementById('estado-sala').textContent = '¡Derrota!';
             
-            // Mostrar modal de derrota
             const modal = document.getElementById('modal-fin');
             const emoji = document.getElementById('modal-emoji');
             const mensaje = document.getElementById('modal-mensaje');
@@ -534,32 +593,36 @@
             modal.classList.remove('modal-oculto');
             modal.classList.add('modal-visible');
             
-            // Mostrar botón de reiniciar solo al creador
             if (soyCreador) {
                 document.getElementById('btn-reiniciar').style.display = 'inline-block';
                 document.getElementById('btn-reiniciar-modal').style.display = 'inline-block';
             } else {
-                // Para jugadores no creadores, mostrar mensaje de espera
                 mensaje.textContent = '¡DERROTA DEL EQUIPO! Esperando al anfitrión...';
             }
         });
         
         socket.on('bandera_marcada', function(data) {
             bandera[data.fila][data.columna] = data.marcada;
+            uuidActual = data.uuid_siguiente;
+            esMiTurno = data.es_tu_turno;
+            
             crearTablero();
             actualizarMarcador();
-            // No mostrar mensaje por cada bandera para reducir spam
+            actualizarIndicadorTurno();
         });
         
         socket.on('datos_tablero', function(data) {
-            console.log('Datos del tablero recibidos:', data);
             tablero = data.tablero;
             descubierto = data.descubierto;
             bandera = data.bandera;
             filas = data.filas;
             columnas = data.columnas;
             minas = data.minas || 0;
-            console.log('Dimensiones:', filas, 'x', columnas, 'Minas:', minas);
+            
+            esMiTurno = data.es_tu_turno || false;
+            uuidActual = data.uuid_actual || null;
+            actualizarIndicadorTurno();
+            
             crearTablero();
             actualizarMarcador();
         });
@@ -579,6 +642,11 @@
             console.log('Conectado al servidor');
         });
         
+        socket.on('error_turno', function(data) {
+            console.log('Error de turno:', data);
+            mostrarModal('No es tu turno', data.mensaje);
+        });
+        
         socket.on('disconnect', function() {
             console.log('Desconectado del servidor');
         });
@@ -588,6 +656,11 @@
             descubierto = data.descubierto;
             bandera = data.bandera;
             salaBloqueada = false;
+            uuidActual = null;
+            mensajesMostrados = {
+                anfitrion: false,
+                salaDesbloqueada: false
+            };
             document.getElementById('estado-sala').textContent = '¡Juego reiniciado!';
             document.getElementById('btn-reiniciar').style.display = 'none';
             document.getElementById('btn-reiniciar-modal').style.display = 'none';
@@ -608,6 +681,16 @@
             <h2 id="modal-mensaje"></h2>
             <button id="btn-reiniciar-modal" onclick="reiniciarJuego()" style="display:none;">🔄 Reiniciar Juego</button>
             <button onclick="window.location.href='/multijugador'">Salir</button>
+        </div>
+    </div>
+
+    <!-- Modal de notificación de turno -->
+    <div id="modal-turno" class="modal-oculto">
+        <div class="modal-contenido" style="max-width: 400px;">
+            <span style="font-size:3em;">🎯</span>
+            <h2 id="modal-turno-mensaje">¡Es tu turno!</h2>
+            <p id="modal-turno-descripcion">Toca una celda para descubrir o marca una bandera</p>
+            <button onclick="cerrarModalTurno()" style="background: #4ecdc4; color: white;">¡Entendido!</button>
         </div>
     </div>
 </body>

@@ -6,15 +6,13 @@ import os
 from dotenv import load_dotenv
 from datetime import datetime
 
-load_dotenv() # Carga las variables de entorno desde el archivo .env
+load_dotenv()
 
-# Configuración de MongoDB (opcional)
 MONGO_URI = os.getenv("MONGO_URI")
 client = None
 db = None
 records_collection = None
 
-# Intentar conectar a MongoDB solo si la URI está disponible
 if MONGO_URI:
     try:
         from pymongo import MongoClient
@@ -31,11 +29,9 @@ app = Flask(__name__)
 app.secret_key = "buscaminas_secret_key"
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-# Variables globales para multijugador
-salas = {}  # {sala_id: {tablero, jugadores, estado}}
-jugadores = {}  # {session_id: {nombre, sala_id, color}}
+salas = {}
+jugadores = {}
 
-# Niveles predefinidos: (nombre, filas, columnas, minas)
 NIVELES = [
     ("Fácil", 8, 8, 10),
     ("Medio", 16, 16, 40),
@@ -353,15 +349,42 @@ def handle_disconnect():
         jugador = jugadores[session_id]
         sala_id = jugador['sala_id']
         if sala_id in salas:
+            # Guardar información del jugador que se desconecta
+            jugador_desconectado = jugador['nombre']
+            
+            # Remover jugador de la sala
             salas[sala_id]['jugadores'].pop(session_id, None)
+            
             if len(salas[sala_id]['jugadores']) == 0:
+                # Si no quedan jugadores, eliminar la sala
                 del salas[sala_id]
             else:
+                # Actualizar lista de jugadores para turnos (remover jugador desconectado)
+                if session_id in salas[sala_id]['jugadores_lista']:
+                    indice_desconectado = salas[sala_id]['jugadores_lista'].index(session_id)
+                    salas[sala_id]['jugadores_lista'].remove(session_id)
+                    
+                    # CORRECCIÓN: Ajustar turno actual correctamente
+                    if len(salas[sala_id]['jugadores_lista']) > 0:
+                        # Si el jugador que se fue era el actual, pasar al siguiente
+                        if salas[sala_id]['turno_actual'] == indice_desconectado:
+                            # El turno se mantiene en la misma posición, pero ahora apunta al siguiente jugador
+                            salas[sala_id]['turno_actual'] = salas[sala_id]['turno_actual'] % len(salas[sala_id]['jugadores_lista'])
+                        # Si el jugador que se fue estaba antes del turno actual, ajustar índice
+                        elif salas[sala_id]['turno_actual'] > indice_desconectado:
+                            salas[sala_id]['turno_actual'] -= 1
+                    else:
+                        # Si no quedan jugadores en la lista, resetear turno
+                        salas[sala_id]['turno_actual'] = 0
+                
+                print(f"[DEBUG] Desconexión: {jugador_desconectado} salió. turno_actual: {salas[sala_id]['turno_actual']}, jugadores_lista: {salas[sala_id]['jugadores_lista']}")
+                
                 # Notificar a los jugadores restantes
-                emit('jugador_salio', {'jugador': jugador['nombre']}, room=sala_id)
+                emit('jugador_salio', {'jugador': jugador_desconectado}, room=sala_id)
                 emit('actualizar_jugadores', {
                     'jugadores': list(salas[sala_id]['jugadores'].values())
                 }, room=sala_id)
+        
         del jugadores[session_id]
 
 @socketio.on('crear_sala')
@@ -388,7 +411,9 @@ def handle_crear_sala(data):
         'filas': filas,
         'columnas': columnas,
         'minas': minas,
-        'creador': None  # Se establecerá cuando se una el primer jugador
+        'creador': None,
+        'turno_actual': 0,
+        'jugadores_lista': []
     }
     
     emit('sala_creada', {'sala_id': sala_id})
@@ -397,11 +422,9 @@ def handle_crear_sala(data):
 def handle_unirse_sala(data):
     sala_id = data['sala_id']
     nombre = data['nombre']
-    
-    print(f"[DEBUG] Intento de unirse a sala {sala_id} con nombre {nombre}")
+    uuid_jugador = data.get('uuid', None)
     
     if sala_id not in salas:
-        print(f"[DEBUG] Sala {sala_id} no encontrada")
         emit('error', {'mensaje': 'Sala no encontrada'})
         return
     
@@ -409,39 +432,62 @@ def handle_unirse_sala(data):
     colores = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#ff9ff3']
     color = colores[len(salas[sala_id]['jugadores']) % len(colores)]
     
+    if not uuid_jugador:
+        import uuid
+        uuid_jugador = str(uuid.uuid4())
+    
     jugadores[session_id] = {
         'nombre': nombre,
         'sala_id': sala_id,
-        'color': color
+        'color': color,
+        'uuid': uuid_jugador
     }
     
-    # Si es el primer jugador, es el creador
     if len(salas[sala_id]['jugadores']) == 0:
         salas[sala_id]['creador'] = session_id
     
     salas[sala_id]['jugadores'][session_id] = {
         'nombre': nombre,
         'color': color,
-        'es_creador': salas[sala_id]['creador'] == session_id
+        'es_creador': salas[sala_id]['creador'] == session_id,
+        'uuid': uuid_jugador
     }
+    
+    if session_id not in salas[sala_id]['jugadores_lista']:
+        salas[sala_id]['jugadores_lista'].append(session_id)
+    
+    num_jugadores_antes = len(salas[sala_id]['jugadores']) - 1
+    
+    if num_jugadores_antes == 0:
+        pass
+    elif num_jugadores_antes == 1:
+        salas[sala_id]['turno_actual'] = random.randint(0, 1)
+        jugador_inicial = salas[sala_id]['jugadores_lista'][salas[sala_id]['turno_actual']]
+        jugador_inicial_nombre = salas[sala_id]['jugadores'][jugador_inicial]['nombre']
+        jugador_inicial_uuid = salas[sala_id]['jugadores'][jugador_inicial]['uuid']
+        
+        emit('turno_asignado', {
+            'jugador_actual': jugador_inicial_nombre,
+            'uuid_actual': jugador_inicial_uuid,
+            'turno_actual': salas[sala_id]['turno_actual']
+        }, room=sala_id)
     
     join_room(sala_id)
     emit('jugador_unido', {
         'jugador': nombre,
         'color': color,
-        'jugadores': list(salas[sala_id]['jugadores'].values())
+        'jugadores': list(salas[sala_id]['jugadores'].values()),
+        'uuid': uuid_jugador
     }, room=sala_id)
     
-    # Enviar actualización a todos los jugadores en la sala
     emit('actualizar_jugadores', {
         'jugadores': list(salas[sala_id]['jugadores'].values())
     }, room=sala_id)
     
-    # Confirmar unión exitosa al jugador que se unió
-    print(f"[DEBUG] Enviando unirse_exitoso a {nombre}")
     emit('unirse_exitoso', {
         'sala_id': sala_id,
-        'nombre': nombre
+        'nombre': nombre,
+        'uuid': uuid_jugador
     })
 
 @socketio.on('accion_multijugador')
@@ -457,6 +503,20 @@ def handle_accion_multijugador(data):
         return
     
     sala = salas[sala_id]
+    
+    if len(sala['jugadores_lista']) > 0 and sala['turno_actual'] < len(sala['jugadores_lista']):
+        jugador_actual = sala['jugadores_lista'][sala['turno_actual']]
+        
+        if session_id != jugador_actual:
+            emit('error_turno', {
+                'mensaje': 'No es tu turno. Espera a que el otro jugador termine.',
+                'jugador_actual': sala['jugadores'][jugador_actual]['nombre'],
+                'uuid_actual': sala['jugadores'][jugador_actual]['uuid']
+            })
+            return
+    else:
+        return
+    
     f = data['fila']
     c = data['columna']
     tipo = data['tipo']
@@ -466,70 +526,101 @@ def handle_accion_multijugador(data):
             return
         
         if sala['tablero'][f][c] == -1:
-            # Mina encontrada - TODOS PIERDEN
             sala['descubierto'][f][c] = True
             sala['estado'] = 'perdido'
             emit('mina_encontrada', {
                 'fila': f, 'columna': c,
                 'jugador': jugador['nombre'],
+                'uuid_jugador': jugador['uuid'],
                 'estado': 'perdido'
             }, room=sala_id)
         else:
-            # Celda segura - aplicar algoritmo de revelación
             revelar(sala['tablero'], sala['descubierto'], f, c)
             celdas_descubiertas = sum(sum(sala['descubierto'], []))
             
-            # Contar celdas descubiertas en esta acción
             celdas_nuevas = 0
             for i in range(sala['filas']):
                 for j in range(sala['columnas']):
                     if sala['descubierto'][i][j]:
                         celdas_nuevas += 1
             
-            # Enviar todo el estado actualizado
-            emit('celda_descubierta', {
-                'fila': f, 'columna': c,
-                'jugador': jugador['nombre'],
-                'descubierto': sala['descubierto'],
-                'celdas_descubiertas': celdas_descubiertas,
-                'celdas_nuevas': celdas_nuevas
-            }, room=sala_id)
+            if len(sala['jugadores_lista']) > 0:
+                sala['turno_actual'] = (sala['turno_actual'] + 1) % len(sala['jugadores_lista'])
+                siguiente_jugador = sala['jugadores_lista'][sala['turno_actual']]
+                
+                for session_id_jugador in sala['jugadores_lista']:
+                    jugador_actual = sala['jugadores'][session_id_jugador]
+                    es_tu_turno = jugador_actual['uuid'] == sala['jugadores'][siguiente_jugador]['uuid']
+                    
+                    emit('celda_descubierta', {
+                        'fila': f, 'columna': c,
+                        'jugador': jugador['nombre'],
+                        'uuid_jugador': jugador['uuid'],
+                        'descubierto': sala['descubierto'],
+                        'celdas_descubiertas': celdas_descubiertas,
+                        'celdas_nuevas': celdas_nuevas,
+                        'siguiente_jugador': sala['jugadores'][siguiente_jugador]['nombre'],
+                        'uuid_siguiente': sala['jugadores'][siguiente_jugador]['uuid'],
+                        'es_tu_turno': es_tu_turno
+                    }, room=session_id_jugador)
     
     elif tipo == 'bandera':
         if not sala['descubierto'][f][c]:
             sala['bandera'][f][c] = not sala['bandera'][f][c]
-            emit('bandera_marcada', {
-                'fila': f, 'columna': c,
-                'jugador': jugador['nombre'],
-                'marcada': sala['bandera'][f][c]
-            }, room=sala_id)
+            
+            if len(sala['jugadores_lista']) > 0:
+                sala['turno_actual'] = (sala['turno_actual'] + 1) % len(sala['jugadores_lista'])
+                siguiente_jugador = sala['jugadores_lista'][sala['turno_actual']]
+                
+                for session_id_jugador in sala['jugadores_lista']:
+                    jugador_actual = sala['jugadores'][session_id_jugador]
+                    es_tu_turno = jugador_actual['uuid'] == sala['jugadores'][siguiente_jugador]['uuid']
+                    
+                    emit('bandera_marcada', {
+                        'fila': f, 'columna': c,
+                        'jugador': jugador['nombre'],
+                        'uuid_jugador': jugador['uuid'],
+                        'marcada': sala['bandera'][f][c],
+                        'siguiente_jugador': sala['jugadores'][siguiente_jugador]['nombre'],
+                        'uuid_siguiente': sala['jugadores'][siguiente_jugador]['uuid'],
+                        'es_tu_turno': es_tu_turno
+                    }, room=session_id_jugador)
 
 @socketio.on('solicitar_tablero')
 def handle_solicitar_tablero():
     session_id = request.sid
-    print(f"[DEBUG] Solicitud de tablero desde session_id: {session_id}")
     
     if session_id not in jugadores:
-        print(f"[DEBUG] Session_id {session_id} no encontrado en jugadores")
         return
     
     jugador = jugadores[session_id]
     sala_id = jugador['sala_id']
-    print(f"[DEBUG] Jugador {jugador['nombre']} solicitando tablero de sala {sala_id}")
     
     if sala_id not in salas:
-        print(f"[DEBUG] Sala {sala_id} no encontrada")
         return
     
     sala = salas[sala_id]
-    print(f"[DEBUG] Enviando datos del tablero: {sala['filas']}x{sala['columnas']}, {sala['minas']} minas")
+    
+    jugador_actual = None
+    es_tu_turno = False
+    uuid_actual = None
+    
+    if len(sala['jugadores_lista']) > 0 and sala['turno_actual'] < len(sala['jugadores_lista']):
+        jugador_actual = sala['jugadores_lista'][sala['turno_actual']]
+        uuid_actual = sala['jugadores'][jugador_actual]['uuid'] if jugador_actual else None
+        es_tu_turno = jugador['uuid'] == uuid_actual
+    
     emit('datos_tablero', {
         'tablero': sala['tablero'],
         'descubierto': sala['descubierto'],
         'bandera': sala['bandera'],
         'filas': sala['filas'],
         'columnas': sala['columnas'],
-        'minas': sala['minas']
+        'minas': sala['minas'],
+        'es_tu_turno': es_tu_turno,
+        'jugador_actual': sala['jugadores'][jugador_actual]['nombre'] if jugador_actual else None,
+        'uuid_actual': uuid_actual,
+        'mi_uuid': jugador['uuid']
     })
 
 @socketio.on('mensaje_chat')
@@ -561,11 +652,9 @@ def handle_reiniciar_juego():
     if sala_id not in salas:
         return
     
-    # Solo el creador puede reiniciar
     if not salas[sala_id]['jugadores'][session_id]['es_creador']:
         return
     
-    # Reiniciar el tablero
     sala = salas[sala_id]
     tablero = crear_tablero(sala['filas'], sala['columnas'], sala['minas'])
     
@@ -573,6 +662,7 @@ def handle_reiniciar_juego():
     salas[sala_id]['descubierto'] = [[False for _ in range(sala['columnas'])] for _ in range(sala['filas'])]
     salas[sala_id]['bandera'] = [[False for _ in range(sala['columnas'])] for _ in range(sala['filas'])]
     salas[sala_id]['estado'] = 'esperando'
+    salas[sala_id]['turno_actual'] = 0
     
     emit('juego_reiniciado', {
         'tablero': tablero,
