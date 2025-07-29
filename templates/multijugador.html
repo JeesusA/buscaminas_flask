@@ -159,7 +159,10 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js?v=1.1"></script>
     <script>
-        const socket = io();
+        const socket = io({
+            transports: ['polling'],
+            upgrade: false
+        });
         
         // Generar UUID único para este jugador
         function generarUUID() {

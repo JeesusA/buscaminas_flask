@@ -27,7 +27,7 @@ else:
 
 app = Flask(__name__)
 app.secret_key = "buscaminas_secret_key"
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
 salas = {}
 jugadores = {}

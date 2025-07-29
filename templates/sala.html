@@ -242,7 +242,10 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <script>
-        const socket = io();
+        const socket = io({
+            transports: ['polling'],
+            upgrade: false
+        });
         const sala_id = '{{ sala_id }}';
         let miNombre = '';
         let miUUID = '';
