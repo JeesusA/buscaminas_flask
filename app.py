@@ -16,13 +16,16 @@ records_collection = None
 if MONGO_URI:
     try:
         from pymongo import MongoClient
+        print(f"[RAILWAY] Intentando conectar a MongoDB...")
         client = MongoClient(MONGO_URI)
         db = client['buscaminas_db']
         records_collection = db['records']
+        print(f"[RAILWAY] MongoDB conectado exitosamente")
     except Exception as e:
-        print(f"Error conectando a MongoDB: {e}")
+        print(f"[RAILWAY] Error conectando a MongoDB: {e}")
         records_collection = None
 else:
+    print(f"[RAILWAY] MONGO_URI no configurada")
     records_collection = None
 
 app = Flask(__name__)
