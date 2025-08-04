@@ -154,6 +154,7 @@
     </form>
     <button id="btn-ranking" style="margin:10px;">Ver ranking global</button>
     <button onclick="window.location.href='/multijugador'" style="margin:10px; background:#4ecdc4; color:#fff;">🎮 Modo Multijugador</button>
+
     <!-- Modal de ranking global -->
     <div id="modal-ranking" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(30,30,30,0.6); justify-content:center; align-items:center; z-index:3000;">
       <div class="modal-ranking-content">
@@ -261,6 +262,8 @@ function cargarRankingGlobal(nivel = "Fácil") {
             tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:red;">Error al cargar el ranking</td></tr>';
         });
 }
+
+
 window.addEventListener('DOMContentLoaded', function() {
     // Botón para abrir el modal
     document.getElementById('btn-ranking').onclick = function() {

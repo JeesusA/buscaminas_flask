@@ -291,10 +291,14 @@ def ranking_global():
         nivel = request.args.get("nivel", None)
         filtro = {"nivel": nivel} if nivel else {}
         
+        print(f"[DEBUG] Ranking solicitado para nivel: {nivel}")
+        print(f"[DEBUG] MongoDB disponible: {records_collection is not None}")
+        
         # Top 10 mejores tiempos
         if records_collection is not None:
             try:
                 records = list(records_collection.find(filtro).sort("tiempo", 1).limit(10))
+                print(f"[DEBUG] Registros encontrados: {len(records)}")
                 
                 # Convertir ObjectId y fecha a string, formatear tiempo
                 for r in records:
@@ -307,6 +311,7 @@ def ranking_global():
                 print(f"[ERROR] Error al obtener ranking de MongoDB: {e}")
                 return jsonify({"records": []})
         else:
+            print("[DEBUG] MongoDB no disponible")
             return jsonify({"records": []})
     except Exception as e:
         print(f"[ERROR] Error general en ranking_global: {e}")
